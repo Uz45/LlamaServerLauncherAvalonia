@@ -179,4 +179,86 @@ public string English => GetString("English");
     public string TooltipCurrentCommand => GetString("TooltipCurrentCommand");
 
     public string AutoFitHeight => GetString("AutoFitHeight");
+
+    public string DownloadLlama => GetString("DownloadLlama");
+    public string UpdateLlama => GetString("UpdateLlama");
+    public string ExecutablePathPlaceholder => GetString("ExecutablePathPlaceholder");
+    public string DownloadDialogTitle => GetString("DownloadDialogTitle");
+    public string SelectRelease => GetString("SelectRelease");
+    public string SelectBuild => GetString("SelectBuild");
+    public string DownloadButton => GetString("DownloadButton");
+    public string LoadingReleases => GetString("LoadingReleases");
+    public string ReleaseNotFound => GetString("ReleaseNotFound");
+    public string NoAssetsForOS => GetString("NoAssetsForOS");
+    public string Downloading => GetString("Downloading");
+    public string Extracting => GetString("Extracting");
+    public string DownloadComplete => GetString("DownloadComplete");
+    public string DownloadFailed => GetString("DownloadFailed");
+    public string PromptDownloadLlama => GetString("PromptDownloadLlama");
+    public string AddToPathPrompt => GetString("AddToPathPrompt");
+    public string ChangeVersionLlama => GetString("ChangeVersionLlama");
+    public string OpenInBrowser => GetString("OpenInBrowser");
+    public string TooltipOpenInBrowser => GetString("TooltipOpenInBrowser");
+
+    public string PlaceholderModelPath => GetString("PlaceholderModelPath");
+    public string PlaceholderModelsDir => GetString("PlaceholderModelsDir");
+    public string PlaceholderHost => GetString("PlaceholderHost");
+    public string PlaceholderPort => GetString("PlaceholderPort");
+    public string PlaceholderContextSize => GetString("PlaceholderContextSize");
+    public string PlaceholderThreads => GetString("PlaceholderThreads");
+    public string PlaceholderGpuLayers => GetString("PlaceholderGpuLayers");
+    public string PlaceholderTemperature => GetString("PlaceholderTemperature");
+    public string PlaceholderMaxTokens => GetString("PlaceholderMaxTokens");
+    public string PlaceholderBatchSize => GetString("PlaceholderBatchSize");
+    public string PlaceholderUBatchSize => GetString("PlaceholderUBatchSize");
+    public string PlaceholderMinP => GetString("PlaceholderMinP");
+    public string PlaceholderTopK => GetString("PlaceholderTopK");
+    public string PlaceholderTopP => GetString("PlaceholderTopP");
+    public string PlaceholderRepeatPenalty => GetString("PlaceholderRepeatPenalty");
+    public string PlaceholderApiKey => GetString("PlaceholderApiKey");
+    public string PlaceholderAlias => GetString("PlaceholderAlias");
+    public string PlaceholderLogFilePath => GetString("PlaceholderLogFilePath");
+    public string PlaceholderMmprojPath => GetString("PlaceholderMmprojPath");
+    public string PlaceholderCustomArguments => GetString("PlaceholderCustomArguments");
+    public string PortValidationWarning => GetString("PortValidationWarning");
+
+    public string ParallelSlots => GetString("ParallelSlots");
+    public string ContBatching => GetString("ContBatching");
+    public string Timeout => GetString("Timeout");
+    public string CachePrompt => GetString("CachePrompt");
+    public string Mlock => GetString("Mlock");
+    public string Mmap => GetString("Mmap");
+    public string Reasoning => GetString("Reasoning");
+    public string ReasoningBudget => GetString("ReasoningBudget");
+    public string Seed => GetString("Seed");
+    public string PresencePenalty => GetString("PresencePenalty");
+    public string FrequencyPenalty => GetString("FrequencyPenalty");
+    public string ContextShift => GetString("ContextShift");
+
+    public string TooltipParallelSlots => GetString("TooltipParallelSlots");
+    public string TooltipContBatching => GetString("TooltipContBatching");
+    public string TooltipTimeout => GetString("TooltipTimeout");
+    public string TooltipCachePrompt => GetString("TooltipCachePrompt");
+    public string TooltipMlock => GetString("TooltipMlock");
+    public string TooltipMmap => GetString("TooltipMmap");
+    public string TooltipReasoning => GetString("TooltipReasoning");
+    public string TooltipReasoningBudget => GetString("TooltipReasoningBudget");
+    public string TooltipSeed => GetString("TooltipSeed");
+    public string TooltipPresencePenalty => GetString("TooltipPresencePenalty");
+    public string TooltipFrequencyPenalty => GetString("TooltipFrequencyPenalty");
+    public string TooltipContextShift => GetString("TooltipContextShift");
+
+    public string PlaceholderParallelSlots => GetString("PlaceholderParallelSlots");
+    public string PlaceholderTimeout => GetString("PlaceholderTimeout");
+    public string PlaceholderReasoningBudget => GetString("PlaceholderReasoningBudget");
+    public string PlaceholderSeed => GetString("PlaceholderSeed");
+    public string PlaceholderPresencePenalty => GetString("PlaceholderPresencePenalty");
+    public string PlaceholderFrequencyPenalty => GetString("PlaceholderFrequencyPenalty");
+
+    public string FeatureNotSupported => GetString("FeatureNotSupported");
+
+    public string AboutTitle => GetString("AboutTitle");
+    public string Developer => GetString("Developer");
+    public string AppRepository => GetString("AppRepository");
+    public string TooltipAbout => GetString("TooltipAbout");
 }

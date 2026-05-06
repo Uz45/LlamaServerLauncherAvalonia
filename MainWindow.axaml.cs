@@ -80,6 +80,7 @@ public partial class MainWindow : Window
             _viewModel = vm;
             _configService = new ConfigurationService(_viewModel.LogService);
             vm.PropertyChanged += ViewModel_PropertyChanged;
+            vm.OpenDownloadDialogFunc = OpenDownloadDialogAsync;
             await vm.InitializeAsync();
             await LoadWindowPositionAsync();
             
@@ -436,6 +437,42 @@ public partial class MainWindow : Window
             _viewModel.GpuLayers = string.Empty;
     }
 
+    private void ClearParallelSlotsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+            _viewModel.ParallelSlots = string.Empty;
+    }
+
+    private void ClearTimeoutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+            _viewModel.Timeout = string.Empty;
+    }
+
+    private void ClearReasoningBudgetClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+            _viewModel.ReasoningBudget = string.Empty;
+    }
+
+    private void ClearSeedClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+            _viewModel.Seed = string.Empty;
+    }
+
+    private void ClearPresencePenaltyClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+            _viewModel.PresencePenalty = string.Empty;
+    }
+
+    private void ClearFrequencyPenaltyClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+            _viewModel.FrequencyPenalty = string.Empty;
+    }
+
     private void ClearCacheTypeKClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_viewModel != null)
@@ -510,6 +547,11 @@ public partial class MainWindow : Window
         _viewModel?.UnloadModelCommand.Execute(null);
     }
 
+    private void OpenInBrowserClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.OpenInBrowserCommand.Execute(null);
+    }
+
     private void BrowseExecutableClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel?.BrowseExecutableCommand.Execute(null);
@@ -533,6 +575,43 @@ public partial class MainWindow : Window
     private void BrowseMmprojClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel?.BrowseMmprojCommand.Execute(null);
+    }
+
+    private async void LlamaDownloadClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        await OpenDownloadDialogAsync();
+    }
+
+    private async void AboutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var dialog = new AboutDialogWindow();
+        await dialog.ShowDialog(this);
+    }
+
+    private async Task OpenDownloadDialogAsync()
+    {
+        if (_viewModel == null) return;
+
+        var dialog = new DownloadDialogWindow();
+        var vm = new DownloadDialogViewModel(_viewModel.DownloadService, null);
+        dialog.SetViewModel(vm);
+        await dialog.ShowDialog(this);
+
+        if (!dialog.DownloadCompleted)
+            return;
+
+        var defaultPath = _viewModel.DownloadService.GetDefaultLlamaServerPath();
+        if (defaultPath != null)
+        {
+            var downloadedTag = vm.DownloadedReleaseTag;
+            if (!string.IsNullOrEmpty(downloadedTag))
+                _viewModel.UpdateInstalledTag(downloadedTag);
+
+            if (string.IsNullOrEmpty(_viewModel.ExecutablePath))
+            {
+                _viewModel.ExecutablePath = defaultPath;
+            }
+        }
     }
 
     private void ClearLogClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

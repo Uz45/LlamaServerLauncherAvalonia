@@ -42,6 +42,18 @@ public class AppSettings
     public bool VerboseLogging { get; set; }
     public string Alias { get; set; } = "";
     public string CustomArguments { get; set; } = "";
+    public string ParallelSlots { get; set; } = "";
+    public bool? ContBatching { get; set; }
+    public string Timeout { get; set; } = "";
+    public bool? CachePrompt { get; set; }
+    public bool? Mlock { get; set; }
+    public bool? Mmap { get; set; }
+    public bool? Reasoning { get; set; }
+    public string ReasoningBudget { get; set; } = "";
+    public string Seed { get; set; } = "";
+    public string PresencePenalty { get; set; } = "";
+    public string FrequencyPenalty { get; set; } = "";
+    public bool? ContextShift { get; set; }
     public bool AutoRestart { get; set; }
     public bool AutoScrollLog { get; set; } = true;
     public bool LogEnabled { get; set; } = true;
@@ -52,4 +64,5 @@ public class AppSettings
     public double AutoFitHeightSavedHeight { get; set; } = 650;
     public bool TabPanelVisible { get; set; } = true;
     public double LogHeight { get; set; } = 200;
+    public string LlamaCppInstalledTag { get; set; } = "";
 }

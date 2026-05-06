@@ -42,7 +42,7 @@ public class LlamaServerService : ILlamaServerService, IDisposable
 
         if (string.IsNullOrEmpty(config.ExecutablePath))
         {
-            throw new InvalidOperationException("Executable path is not set");
+            throw new InvalidOperationException("Executable path is not set. Download llama.cpp or specify the path manually.");
         }
 
         if (string.IsNullOrEmpty(config.ModelPath) && string.IsNullOrEmpty(config.ModelsDir))

@@ -297,85 +297,85 @@
     <value>Close</value>
   </data>
   <data name="TooltipModelPath" xml:space="preserve">
-    <value>model path to load</value>
+    <value>Path to the GGUF model file to load (-m). Supports drag &amp; drop.</value>
   </data>
   <data name="TooltipModelsDir" xml:space="preserve">
-    <value>directory containing models for the router server</value>
+    <value>Directory with models for multi-model routing (--models-dir). Leave empty if using a single model.</value>
   </data>
   <data name="TooltipHost" xml:space="preserve">
-    <value>ip address to listen</value>
+    <value>IP address the server binds to. Default: 127.0.0.1 (localhost only). Use 0.0.0.0 for all interfaces.</value>
   </data>
   <data name="TooltipPort" xml:space="preserve">
-    <value>port to listen</value>
+    <value>TCP port for the server. Default: 8080</value>
   </data>
   <data name="TooltipContextSize" xml:space="preserve">
-    <value>size of the prompt context</value>
+    <value>Size of the prompt context in tokens (-c). Larger values use more RAM/VRAM. Default: 512</value>
   </data>
   <data name="TooltipThreads" xml:space="preserve">
-    <value>number of CPU threads</value>
+    <value>Number of CPU threads for generation (-t). More threads = faster, but diminishing returns.</value>
   </data>
   <data name="TooltipGpuLayers" xml:space="preserve">
-    <value>max number of layers to store in VRAM</value>
+    <value>Number of model layers to offload to GPU (-ngl). 0 = CPU only, -1 = all layers. Default: 0</value>
   </data>
   <data name="TooltipTemperature" xml:space="preserve">
-    <value>temperature</value>
+    <value>Controls randomness of output (-temp). Higher = more creative, lower = more focused. Default: 0.8</value>
   </data>
   <data name="TooltipMaxTokens" xml:space="preserve">
-    <value>number of tokens to predict</value>
+    <value>Maximum number of tokens to generate per response (-n). Default: 256</value>
   </data>
   <data name="TooltipBatchSize" xml:space="preserve">
-    <value>logical maximum batch size</value>
+    <value>Maximum number of tokens processed at once during prompt evaluation (-b). Default: 2048</value>
   </data>
   <data name="TooltipUBatchSize" xml:space="preserve">
-    <value>physical maximum batch size</value>
+    <value>Physical batch size for processing (-ubatch). Should be ≤ batch size. Default: 512</value>
   </data>
   <data name="TooltipMinP" xml:space="preserve">
-    <value>min-p sampling</value>
+    <value>Minimum probability threshold for token sampling (--min-p). Filters out unlikely tokens. Default: 0.05</value>
   </data>
   <data name="TooltipMMProj" xml:space="preserve">
-    <value>path to multimodal projector file</value>
+    <value>Path to multimodal projector file for vision models (--mmproj). Required for models like LLaVA.</value>
   </data>
   <data name="TooltipCacheTypeK" xml:space="preserve">
-    <value>KV cache data type for K</value>
+    <value>Data type for key cache (--cache-type-k). Options: f16 (default), q8_0, q4_0, etc. Lower precision = less VRAM.</value>
   </data>
   <data name="TooltipCacheTypeV" xml:space="preserve">
-    <value>KV cache data type for V</value>
+    <value>Data type for value cache (--cache-type-v). Options: f16 (default), q8_0, q4_0, etc. Lower precision = less VRAM.</value>
   </data>
   <data name="TooltipTopK" xml:space="preserve">
-    <value>top-k sampling</value>
+    <value>Limits token selection to top K most likely tokens (--top-k). Lower = less variety. Default: 40</value>
   </data>
   <data name="TooltipTopP" xml:space="preserve">
-    <value>top-p sampling</value>
+    <value>Nucleus sampling threshold (--top-p). Keeps tokens with cumulative probability ≤ P. Default: 0.95</value>
   </data>
   <data name="TooltipRepeatPenalty" xml:space="preserve">
-    <value>penalize repeat sequence of tokens</value>
+    <value>Penalty for repeating the same tokens (--repeat-penalty). Values &gt; 1.0 reduce repetition. Default: 1.1</value>
   </data>
   <data name="TooltipFlashAttention" xml:space="preserve">
-    <value>set Flash Attention use</value>
+    <value>Enable Flash Attention for faster and more memory-efficient attention computation</value>
   </data>
   <data name="TooltipWebUI" xml:space="preserve">
-    <value>whether to enable the Web UI</value>
+    <value>Enable the built-in web chat interface accessible from a browser</value>
   </data>
   <data name="TooltipEmbedding" xml:space="preserve">
-    <value>restrict to only support embedding use case</value>
+    <value>Restrict the server to embedding mode only. Disables chat completions endpoint.</value>
   </data>
   <data name="TooltipSlots" xml:space="preserve">
-    <value>expose slots monitoring endpoint</value>
+    <value>Enable the /slots endpoint for monitoring active generation slots</value>
   </data>
   <data name="TooltipMetrics" xml:space="preserve">
-    <value>enable prometheus compatible metrics endpoint</value>
+    <value>Enable Prometheus-compatible metrics at /metrics for monitoring and observability</value>
   </data>
   <data name="TooltipApiKey" xml:space="preserve">
-    <value>API key to use for authentication</value>
+    <value>API key for authenticating requests. Clients must send this key via Authorization header.</value>
   </data>
   <data name="TooltipAlias" xml:space="preserve">
-    <value>set model name aliases</value>
+    <value>Custom model name returned in the API response (--alias). Useful when using --models-dir.</value>
   </data>
   <data name="TooltipLogFile" xml:space="preserve">
-    <value>Log to file</value>
+    <value>Path to a file where server output will be logged (--log-file)</value>
   </data>
   <data name="TooltipCustomArguments" xml:space="preserve">
-    <value>Additional command-line arguments</value>
+    <value>Any additional llama-server CLI arguments, one per line. E.g. --special-flag value</value>
   </data>
   <data name="Rename" xml:space="preserve">
     <value>Rename</value>
@@ -451,5 +451,230 @@
   </data>
   <data name="TooltipCurrentCommand" xml:space="preserve">
     <value>Click to copy command to clipboard</value>
+  </data>
+  <data name="DownloadLlama" xml:space="preserve">
+    <value>Download llama</value>
+  </data>
+  <data name="UpdateLlama" xml:space="preserve">
+    <value>Update llama</value>
+  </data>
+  <data name="ExecutablePathPlaceholder" xml:space="preserve">
+    <value>Leave empty for default server</value>
+  </data>
+  <data name="DownloadDialogTitle" xml:space="preserve">
+    <value>Download llama.cpp</value>
+  </data>
+  <data name="SelectRelease" xml:space="preserve">
+    <value>Select release:</value>
+  </data>
+  <data name="SelectBuild" xml:space="preserve">
+    <value>Select build:</value>
+  </data>
+  <data name="DownloadButton" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="LoadingReleases" xml:space="preserve">
+    <value>Loading releases...</value>
+  </data>
+  <data name="ReleaseNotFound" xml:space="preserve">
+    <value>Release not found</value>
+  </data>
+  <data name="NoAssetsForOS" xml:space="preserve">
+    <value>No compatible builds found for your OS</value>
+  </data>
+  <data name="Downloading" xml:space="preserve">
+    <value>Downloading...</value>
+  </data>
+  <data name="Extracting" xml:space="preserve">
+    <value>Extracting...</value>
+  </data>
+  <data name="DownloadComplete" xml:space="preserve">
+    <value>Download complete!</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>Download failed: {0}</value>
+  </data>
+  <data name="PromptDownloadLlama" xml:space="preserve">
+    <value>llama-server executable not set. Download llama.cpp prebuilt binaries?</value>
+  </data>
+  <data name="AddToPathPrompt" xml:space="preserve">
+    <value>Add llama.cpp directory to PATH environment variable?</value>
+  </data>
+  <data name="ChangeVersionLlama" xml:space="preserve">
+    <value>Change llama version</value>
+  </data>
+  <data name="OpenInBrowser" xml:space="preserve">
+    <value>Open in Browser</value>
+  </data>
+  <data name="TooltipOpenInBrowser" xml:space="preserve">
+    <value>Open server URL in default browser</value>
+  </data>
+  <data name="PlaceholderModelPath" xml:space="preserve">
+    <value>e.g. models/llama-3.1-8b-Q4_K_M.gguf</value>
+  </data>
+  <data name="PlaceholderModelsDir" xml:space="preserve">
+    <value>e.g. ./models</value>
+  </data>
+  <data name="PlaceholderHost" xml:space="preserve">
+    <value>Default: 127.0.0.1</value>
+  </data>
+  <data name="PlaceholderPort" xml:space="preserve">
+    <value>Default: 8080</value>
+  </data>
+  <data name="PlaceholderContextSize" xml:space="preserve">
+    <value>Default: 512</value>
+  </data>
+  <data name="PlaceholderThreads" xml:space="preserve">
+    <value>e.g. 8</value>
+  </data>
+  <data name="PlaceholderGpuLayers" xml:space="preserve">
+    <value>Default: 0 (CPU only)</value>
+  </data>
+  <data name="PlaceholderTemperature" xml:space="preserve">
+    <value>Default: 0.8</value>
+  </data>
+  <data name="PlaceholderMaxTokens" xml:space="preserve">
+    <value>Default: 256</value>
+  </data>
+  <data name="PlaceholderBatchSize" xml:space="preserve">
+    <value>Default: 2048</value>
+  </data>
+  <data name="PlaceholderUBatchSize" xml:space="preserve">
+    <value>Default: 512</value>
+  </data>
+  <data name="PlaceholderMinP" xml:space="preserve">
+    <value>Default: 0.05</value>
+  </data>
+  <data name="PlaceholderTopK" xml:space="preserve">
+    <value>Default: 40</value>
+  </data>
+  <data name="PlaceholderTopP" xml:space="preserve">
+    <value>Default: 0.95</value>
+  </data>
+  <data name="PlaceholderRepeatPenalty" xml:space="preserve">
+    <value>Default: 1.1</value>
+  </data>
+  <data name="PlaceholderApiKey" xml:space="preserve">
+    <value>API key for authentication</value>
+  </data>
+  <data name="PlaceholderAlias" xml:space="preserve">
+    <value>Custom model name in API</value>
+  </data>
+  <data name="PlaceholderLogFilePath" xml:space="preserve">
+    <value>e.g. server.log</value>
+  </data>
+  <data name="PlaceholderMmprojPath" xml:space="preserve">
+    <value>Multimodal projector file</value>
+  </data>
+  <data name="PlaceholderCustomArguments" xml:space="preserve">
+    <value>e.g. --special-flag value</value>
+  </data>
+  <data name="PortValidationWarning" xml:space="preserve">
+    <value>Invalid port number</value>
+  </data>
+  <data name="ParallelSlots" xml:space="preserve">
+    <value>Parallel Slots</value>
+  </data>
+  <data name="ContBatching" xml:space="preserve">
+    <value>Cont. Batching</value>
+  </data>
+  <data name="Timeout" xml:space="preserve">
+    <value>Timeout (sec)</value>
+  </data>
+  <data name="CachePrompt" xml:space="preserve">
+    <value>Cache Prompt</value>
+  </data>
+  <data name="Mlock" xml:space="preserve">
+    <value>MLock (RAM)</value>
+  </data>
+  <data name="Mmap" xml:space="preserve">
+    <value>MMap</value>
+  </data>
+  <data name="Reasoning" xml:space="preserve">
+    <value>Reasoning</value>
+  </data>
+  <data name="ReasoningBudget" xml:space="preserve">
+    <value>Reasoning Budget</value>
+  </data>
+  <data name="Seed" xml:space="preserve">
+    <value>Seed</value>
+  </data>
+  <data name="PresencePenalty" xml:space="preserve">
+    <value>Presence Penalty</value>
+  </data>
+  <data name="FrequencyPenalty" xml:space="preserve">
+    <value>Frequency Penalty</value>
+  </data>
+  <data name="ContextShift" xml:space="preserve">
+    <value>Context Shift</value>
+  </data>
+  <data name="TooltipParallelSlots" xml:space="preserve">
+    <value>Number of parallel request slots (-np, --parallel). Default: auto (-1)</value>
+  </data>
+  <data name="TooltipContBatching" xml:space="preserve">
+    <value>Enable continuous/dynamic batching (-cb). Default: enabled</value>
+  </data>
+  <data name="TooltipTimeout" xml:space="preserve">
+    <value>Server read/write timeout in seconds (-to). Default: 600</value>
+  </data>
+  <data name="TooltipCachePrompt" xml:space="preserve">
+    <value>Enable prompt caching for repeated requests (--cache-prompt). Default: enabled</value>
+  </data>
+  <data name="TooltipMlock" xml:space="preserve">
+    <value>Lock model in RAM to prevent swapping (--mlock)</value>
+  </data>
+  <data name="TooltipMmap" xml:space="preserve">
+    <value>Memory-map model file (--mmap). Disable for slower load but less pageouts. Default: enabled</value>
+  </data>
+  <data name="TooltipReasoning" xml:space="preserve">
+    <value>Enable reasoning/thinking mode (-rea). Default: auto (detect from model)</value>
+  </data>
+  <data name="TooltipReasoningBudget" xml:space="preserve">
+    <value>Token budget for thinking (--reasoning-budget). -1=unlimited, 0=immediate stop</value>
+  </data>
+  <data name="TooltipSeed" xml:space="preserve">
+    <value>RNG seed for reproducible outputs (-s, --seed). -1=random</value>
+  </data>
+  <data name="TooltipPresencePenalty" xml:space="preserve">
+    <value>Penalize token presence to reduce repetition (--presence-penalty). Default: 0.0</value>
+  </data>
+  <data name="TooltipFrequencyPenalty" xml:space="preserve">
+    <value>Penalize token frequency to reduce repetition (--frequency-penalty). Default: 0.0</value>
+  </data>
+  <data name="TooltipContextShift" xml:space="preserve">
+    <value>Enable context shift for infinite text generation (--context-shift). Default: disabled</value>
+  </data>
+  <data name="PlaceholderParallelSlots" xml:space="preserve">
+    <value>Default: auto (-1)</value>
+  </data>
+  <data name="PlaceholderTimeout" xml:space="preserve">
+    <value>Default: 600</value>
+  </data>
+  <data name="PlaceholderReasoningBudget" xml:space="preserve">
+    <value>-1 (unlimited)</value>
+  </data>
+  <data name="PlaceholderSeed" xml:space="preserve">
+    <value>-1 (random)</value>
+  </data>
+  <data name="PlaceholderPresencePenalty" xml:space="preserve">
+    <value>Default: 0.0</value>
+  </data>
+  <data name="PlaceholderFrequencyPenalty" xml:space="preserve">
+    <value>Default: 0.0</value>
+  </data>
+  <data name="FeatureNotSupported" xml:space="preserve">
+    <value>Not supported by this version of llama-server</value>
+  </data>
+  <data name="AboutTitle" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="Developer" xml:space="preserve">
+    <value>Developer</value>
+  </data>
+  <data name="AppRepository" xml:space="preserve">
+    <value>Repository:</value>
+  </data>
+  <data name="TooltipAbout" xml:space="preserve">
+    <value>About the application</value>
   </data>
 </root>

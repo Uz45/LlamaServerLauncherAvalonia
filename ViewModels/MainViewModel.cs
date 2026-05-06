@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -20,8 +22,10 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly LlamaServerService _serverService;
     private readonly ConfigurationService _configService;
     private readonly LogService _logService;
+    private readonly LlamaCppDownloadService _downloadService;
     private ServerConfiguration? _loadedProfileConfig;
     private string _loadedProfileName = string.Empty;
+    private string _llamaCppInstalledTag = "";
 
     public LogService LogService => _logService;
     public LocalizedStrings Localized { get; } = LocalizedStrings.Instance;
@@ -97,13 +101,22 @@ public class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Localized));
         OnPropertyChanged(nameof(ToggleLogButtonText));
         OnPropertyChanged(nameof(ToggleTabPanelButtonText));
+        OnPropertyChanged(nameof(ExecutablePathPlaceholder));
+        OnPropertyChanged(nameof(LlamaButtonText));
+        OnPropertyChanged(nameof(ParallelSlotsPlaceholder));
+        OnPropertyChanged(nameof(TimeoutPlaceholder));
+        OnPropertyChanged(nameof(ReasoningBudgetPlaceholder));
+        OnPropertyChanged(nameof(SeedPlaceholder));
+        OnPropertyChanged(nameof(PresencePenaltyPlaceholder));
+        OnPropertyChanged(nameof(FrequencyPenaltyPlaceholder));
+        OnPropertyChanged(nameof(FeatureNotSupportedTooltip));
     }
 
     private string _executablePath = string.Empty;
     private string _modelPath = string.Empty;
     private string _modelsDir = string.Empty;
     private string _host = "127.0.0.1";
-    private int _port = 8080;
+    private string _port = "8080";
     private string _contextSize = string.Empty;
     private string _threads = string.Empty;
     private string _gpuLayers = string.Empty;
@@ -128,6 +141,20 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _verboseLogging;
     private string _alias = string.Empty;
     private string _customArguments = string.Empty;
+    private string _parallelSlots = string.Empty;
+    private bool? _contBatching;
+    private string _timeout = string.Empty;
+    private bool? _cachePrompt;
+    private bool? _mlock;
+    private bool? _mmap;
+    private bool? _reasoning;
+    private string _reasoningBudget = string.Empty;
+    private string _seed = string.Empty;
+    private string _presencePenalty = string.Empty;
+    private string _frequencyPenalty = string.Empty;
+    private bool? _contextShift;
+    private HashSet<string>? _supportedFlags;
+    private string _lastCheckedExePath = "";
     private bool _autoRestart;
     private bool _autoScroll = true;
     private bool _logEnabled = true;
@@ -152,6 +179,7 @@ public class MainViewModel : INotifyPropertyChanged
         _logService.LogReceived += OnLogReceived;
         _serverService = new LlamaServerService(_logService);
         _configService = new ConfigurationService(_logService);
+        _downloadService = new LlamaCppDownloadService();
 
         _serverService.OutputReceived += OnServerOutput;
         _serverService.ServerStateChanged += OnServerStateChanged;
@@ -168,6 +196,7 @@ public class MainViewModel : INotifyPropertyChanged
         StartServerCommand = new AsyncRelayCommand(StartServerAsync, () => CanStartServer);
         StopServerCommand = new AsyncRelayCommand(StopServerAsync, () => IsServerRunning);
         UnloadModelCommand = new AsyncRelayCommand(UnloadModelAsync, () => IsServerRunning && !_serverService.IsSingleModelMode);
+        OpenInBrowserCommand = new AsyncRelayCommand(OpenInBrowserAsync, () => CanOpenInBrowser);
         SaveProfileCommand = new AsyncRelayCommand(SaveProfileAsync);
         LoadProfileCommand = new AsyncRelayCommand(LoadProfileAsync);
         DeleteProfileCommand = new AsyncRelayCommand(DeleteProfileAsync);
@@ -191,6 +220,8 @@ public class MainViewModel : INotifyPropertyChanged
     {
         var settings = await _configService.LoadAppSettingsAsync();
         ApplyAppSettings(settings);
+        _ = CheckForLlamaUpdateAsync();
+        _ = RefreshSupportedFlagsAsync();
     }
 
     public void ApplyAppSettings(AppSettings settings)
@@ -206,7 +237,7 @@ public class MainViewModel : INotifyPropertyChanged
         ModelPath = settings.ModelPath;
         ModelsDir = settings.ModelsDir;
         Host = settings.Host;
-        Port = settings.Port;
+        Port = settings.Port.ToString();
         ContextSize = settings.ContextSize;
         Threads = settings.Threads;
         GpuLayers = settings.GpuLayers;
@@ -231,6 +262,18 @@ public class MainViewModel : INotifyPropertyChanged
         VerboseLogging = settings.VerboseLogging;
         Alias = settings.Alias;
         CustomArguments = settings.CustomArguments;
+        ParallelSlots = settings.ParallelSlots;
+        ContBatching = settings.ContBatching;
+        Timeout = settings.Timeout;
+        CachePrompt = settings.CachePrompt;
+        Mlock = settings.Mlock;
+        Mmap = settings.Mmap;
+        Reasoning = settings.Reasoning;
+        ReasoningBudget = settings.ReasoningBudget;
+        Seed = settings.Seed;
+        PresencePenalty = settings.PresencePenalty;
+        FrequencyPenalty = settings.FrequencyPenalty;
+        ContextShift = settings.ContextShift;
         AutoRestart = settings.AutoRestart;
         AutoScroll = settings.AutoScrollLog;
         LogEnabled = settings.LogEnabled;
@@ -240,6 +283,7 @@ public class MainViewModel : INotifyPropertyChanged
         AutoFitHeightSavedHeight = settings.AutoFitHeightSavedHeight > 0 ? settings.AutoFitHeightSavedHeight : 650;
         LogHeight = settings.LogHeight > 0 ? settings.LogHeight : 200;
         FontSizeLevel = string.IsNullOrEmpty(settings.FontSizeLevel) ? "Medium" : settings.FontSizeLevel;
+        _llamaCppInstalledTag = settings.LlamaCppInstalledTag ?? "";
         ParseCustomArguments();
         if (settings.CustomArgumentToggleStates != null && settings.CustomArgumentToggleStates.Count > 0)
         {
@@ -262,7 +306,7 @@ public class MainViewModel : INotifyPropertyChanged
             ModelPath = ModelPath,
             ModelsDir = ModelsDir,
             Host = Host,
-            Port = Port,
+            Port = ParseNullableInt(Port) ?? 8080,
             ContextSize = ContextSize,
             Threads = Threads,
             GpuLayers = GpuLayers,
@@ -287,6 +331,18 @@ public class MainViewModel : INotifyPropertyChanged
             VerboseLogging = VerboseLogging,
             Alias = Alias,
             CustomArguments = string.Join(" ", CustomArgumentItems.Select(x => x.OriginalArg)),
+            ParallelSlots = ParallelSlots,
+            ContBatching = ContBatching,
+            Timeout = Timeout,
+            CachePrompt = CachePrompt,
+            Mlock = Mlock,
+            Mmap = Mmap,
+            Reasoning = Reasoning,
+            ReasoningBudget = ReasoningBudget,
+            Seed = Seed,
+            PresencePenalty = PresencePenalty,
+            FrequencyPenalty = FrequencyPenalty,
+            ContextShift = ContextShift,
             AutoRestart = AutoRestart,
             AutoScrollLog = AutoScroll,
             LogEnabled = LogEnabled,
@@ -296,7 +352,8 @@ public class MainViewModel : INotifyPropertyChanged
             AutoFitHeightSavedHeight = AutoFitHeightSavedHeight,
             LogHeight = LogHeight,
             FontSizeLevel = FontSizeLevel,
-            CustomArgumentToggleStates = GetToggleStates()
+            CustomArgumentToggleStates = GetToggleStates(),
+            LlamaCppInstalledTag = _llamaCppInstalledTag
         };
     }
 
@@ -312,9 +369,9 @@ public class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(CanStartServer));
                 OnPropertyChanged(nameof(HasUnsavedChanges));
                 UpdateCurrentCommand();
-                // Notify StartServerCommand that CanStartServer may have changed
                 if (StartServerCommand is AsyncRelayCommand startCmd)
                     startCmd.RaiseCanExecuteChanged();
+                _ = RefreshSupportedFlagsAsync();
             }
         }
     }
@@ -363,10 +420,38 @@ public class MainViewModel : INotifyPropertyChanged
         set { _host = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
     }
 
-    public int Port
+    public string Port
     {
         get => _port;
-        set { _port = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+        set
+        {
+            _port = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            OnPropertyChanged(nameof(PortValidationMessage));
+            OnPropertyChanged(nameof(IsPortValid));
+            UpdateCurrentCommand();
+        }
+    }
+
+    public bool IsPortValid
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_port)) return true; // empty is ok, will use default
+            return int.TryParse(_port, out _);
+        }
+    }
+
+    public string PortValidationMessage
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_port)) return string.Empty;
+            if (!int.TryParse(_port, out _))
+                return LocalizedStrings.Instance.PortValidationWarning;
+            return string.Empty;
+        }
     }
 
     public string ContextSize
@@ -462,7 +547,16 @@ public class MainViewModel : INotifyPropertyChanged
     public bool? EnableWebUI
     {
         get => _enableWebUI;
-        set { _enableWebUI = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+        set
+        {
+            _enableWebUI = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            OnPropertyChanged(nameof(CanOpenInBrowser));
+            UpdateCurrentCommand();
+            if (OpenInBrowserCommand is AsyncRelayCommand openCmd)
+                openCmd.RaiseCanExecuteChanged();
+        }
     }
 
     public bool? EmbeddingMode
@@ -505,6 +599,78 @@ public class MainViewModel : INotifyPropertyChanged
     {
         get => _alias;
         set { _alias = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public string ParallelSlots
+    {
+        get => _parallelSlots;
+        set { _parallelSlots = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public bool? ContBatching
+    {
+        get => _contBatching;
+        set { _contBatching = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public string Timeout
+    {
+        get => _timeout;
+        set { _timeout = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public bool? CachePrompt
+    {
+        get => _cachePrompt;
+        set { _cachePrompt = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public bool? Mlock
+    {
+        get => _mlock;
+        set { _mlock = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public bool? Mmap
+    {
+        get => _mmap;
+        set { _mmap = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public bool? Reasoning
+    {
+        get => _reasoning;
+        set { _reasoning = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public string ReasoningBudget
+    {
+        get => _reasoningBudget;
+        set { _reasoningBudget = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public string Seed
+    {
+        get => _seed;
+        set { _seed = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public string PresencePenalty
+    {
+        get => _presencePenalty;
+        set { _presencePenalty = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public string FrequencyPenalty
+    {
+        get => _frequencyPenalty;
+        set { _frequencyPenalty = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
+    }
+
+    public bool? ContextShift
+    {
+        get => _contextShift;
+        set { _contextShift = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUnsavedChanges)); UpdateCurrentCommand(); }
     }
 
     public bool AutoRestart
@@ -555,6 +721,121 @@ public class MainViewModel : INotifyPropertyChanged
         get => _logHeight;
         set { _logHeight = value; OnPropertyChanged(); }
     }
+
+    private bool _isLlamaUpdateAvailable;
+    public bool IsLlamaUpdateAvailable
+    {
+        get => _isLlamaUpdateAvailable;
+        set
+        {
+            if (_isLlamaUpdateAvailable != value)
+            {
+                _isLlamaUpdateAvailable = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowLlamaUpdateButton));
+                OnPropertyChanged(nameof(ShowLlamaDownloadButton));
+                OnPropertyChanged(nameof(ShowLlamaChangeVersionButton));
+                OnPropertyChanged(nameof(LlamaButtonText));
+            }
+        }
+    }
+
+    private string _llamaUpdateTooltip = "";
+    public string LlamaUpdateTooltip
+    {
+        get => _llamaUpdateTooltip;
+        set { _llamaUpdateTooltip = value; OnPropertyChanged(); }
+    }
+
+    public bool ShowLlamaUpdateButton => _downloadService.IsLlamaCppInstalled() && _isLlamaUpdateAvailable;
+    public bool ShowLlamaDownloadButton => !_downloadService.IsLlamaCppInstalled();
+    public bool ShowLlamaChangeVersionButton => _downloadService.IsLlamaCppInstalled() && !_isLlamaUpdateAvailable;
+    public string LlamaButtonText => _downloadService.IsLlamaCppInstalled()
+        ? LocalizedStrings.Instance.UpdateLlama
+        : LocalizedStrings.Instance.DownloadLlama;
+    public string ExecutablePathPlaceholder => LocalizedStrings.Instance.ExecutablePathPlaceholder;
+    public string ModelPathPlaceholder => LocalizedStrings.Instance.PlaceholderModelPath;
+    public string ModelsDirPlaceholder => LocalizedStrings.Instance.PlaceholderModelsDir;
+    public string HostPlaceholder => LocalizedStrings.Instance.PlaceholderHost;
+    public string PortPlaceholder => LocalizedStrings.Instance.PlaceholderPort;
+    public string ContextSizePlaceholder => LocalizedStrings.Instance.PlaceholderContextSize;
+    public string ThreadsPlaceholder => LocalizedStrings.Instance.PlaceholderThreads;
+    public string GpuLayersPlaceholder => LocalizedStrings.Instance.PlaceholderGpuLayers;
+    public string TemperaturePlaceholder => LocalizedStrings.Instance.PlaceholderTemperature;
+    public string MaxTokensPlaceholder => LocalizedStrings.Instance.PlaceholderMaxTokens;
+    public string BatchSizePlaceholder => LocalizedStrings.Instance.PlaceholderBatchSize;
+    public string UBatchSizePlaceholder => LocalizedStrings.Instance.PlaceholderUBatchSize;
+    public string MinPPlaceholder => LocalizedStrings.Instance.PlaceholderMinP;
+    public string TopKPlaceholder => LocalizedStrings.Instance.PlaceholderTopK;
+    public string TopPPlaceholder => LocalizedStrings.Instance.PlaceholderTopP;
+    public string RepeatPenaltyPlaceholder => LocalizedStrings.Instance.PlaceholderRepeatPenalty;
+    public string ApiKeyPlaceholder => LocalizedStrings.Instance.PlaceholderApiKey;
+    public string AliasPlaceholder => LocalizedStrings.Instance.PlaceholderAlias;
+    public string LogFilePathPlaceholder => LocalizedStrings.Instance.PlaceholderLogFilePath;
+    public string MmprojPathPlaceholder => LocalizedStrings.Instance.PlaceholderMmprojPath;
+    public string CustomArgumentsPlaceholder => LocalizedStrings.Instance.PlaceholderCustomArguments;
+
+    private bool IsPropertySupported(params string[] flags)
+    {
+        if (_supportedFlags == null) return true;
+        return flags.Any(f => _supportedFlags.Contains(f));
+    }
+
+    public bool IsParallelSlotsSupported => IsPropertySupported("--parallel", "-np");
+    public bool IsContBatchingSupported => IsPropertySupported("--cont-batching", "-cb");
+    public bool IsTimeoutSupported => IsPropertySupported("--timeout", "-to");
+    public bool IsCachePromptSupported => IsPropertySupported("--cache-prompt");
+    public bool IsMlockSupported => IsPropertySupported("--mlock");
+    public bool IsMmapSupported => IsPropertySupported("--mmap");
+    public bool IsReasoningSupported => IsPropertySupported("--reasoning", "-rea");
+    public bool IsReasoningBudgetSupported => IsPropertySupported("--reasoning-budget");
+    public bool IsSeedSupported => IsPropertySupported("--seed", "-s");
+    public bool IsPresencePenaltySupported => IsPropertySupported("--presence-penalty");
+    public bool IsFrequencyPenaltySupported => IsPropertySupported("--frequency-penalty");
+    public bool IsContextShiftSupported => IsPropertySupported("--context-shift");
+
+    public string ParallelSlotsPlaceholder => LocalizedStrings.Instance.PlaceholderParallelSlots;
+    public string TimeoutPlaceholder => LocalizedStrings.Instance.PlaceholderTimeout;
+    public string ReasoningBudgetPlaceholder => LocalizedStrings.Instance.PlaceholderReasoningBudget;
+    public string SeedPlaceholder => LocalizedStrings.Instance.PlaceholderSeed;
+    public string PresencePenaltyPlaceholder => LocalizedStrings.Instance.PlaceholderPresencePenalty;
+    public string FrequencyPenaltyPlaceholder => LocalizedStrings.Instance.PlaceholderFrequencyPenalty;
+    public string FeatureNotSupportedTooltip => LocalizedStrings.Instance.FeatureNotSupported;
+
+    private void UpdateFeatureSupportProperties()
+    {
+        OnPropertyChanged(nameof(IsParallelSlotsSupported));
+        OnPropertyChanged(nameof(IsContBatchingSupported));
+        OnPropertyChanged(nameof(IsTimeoutSupported));
+        OnPropertyChanged(nameof(IsCachePromptSupported));
+        OnPropertyChanged(nameof(IsMlockSupported));
+        OnPropertyChanged(nameof(IsMmapSupported));
+        OnPropertyChanged(nameof(IsReasoningSupported));
+        OnPropertyChanged(nameof(IsReasoningBudgetSupported));
+        OnPropertyChanged(nameof(IsSeedSupported));
+        OnPropertyChanged(nameof(IsPresencePenaltySupported));
+        OnPropertyChanged(nameof(IsFrequencyPenaltySupported));
+        OnPropertyChanged(nameof(IsContextShiftSupported));
+    }
+
+    public async Task RefreshSupportedFlagsAsync()
+    {
+        if (string.IsNullOrEmpty(ExecutablePath) || !File.Exists(ExecutablePath))
+        {
+            _supportedFlags = null;
+            _lastCheckedExePath = "";
+            UpdateFeatureSupportProperties();
+            return;
+        }
+        if (ExecutablePath == _lastCheckedExePath && _supportedFlags != null)
+            return;
+
+        _supportedFlags = await LlamaHelpParserService.GetSupportedFlagsAsync(ExecutablePath);
+        _lastCheckedExePath = ExecutablePath;
+        UpdateFeatureSupportProperties();
+    }
+
+    public LlamaCppDownloadService DownloadService => _downloadService;
 
     public string ToggleLogButtonText => _logVisible
         ? LocalizedStrings.Instance.HideLog
@@ -656,9 +937,21 @@ public class MainViewModel : INotifyPropertyChanged
                 a.EnableMetrics == b.EnableMetrics &&
             a.ApiKey == b.ApiKey &&
                 a.LogFilePath == b.LogFilePath &&
-                a.VerboseLogging == b.VerboseLogging &&
-                a.Alias == b.Alias &&
-                a.CustomArguments == b.CustomArguments;
+            a.VerboseLogging == b.VerboseLogging &&
+            a.Alias == b.Alias &&
+            a.ParallelSlots == b.ParallelSlots &&
+            a.ContBatching == b.ContBatching &&
+            a.Timeout == b.Timeout &&
+            a.CachePrompt == b.CachePrompt &&
+            a.Mlock == b.Mlock &&
+            a.Mmap == b.Mmap &&
+            a.Reasoning == b.Reasoning &&
+            a.ReasoningBudget == b.ReasoningBudget &&
+            a.Seed == b.Seed &&
+            a.PresencePenalty == b.PresencePenalty &&
+            a.FrequencyPenalty == b.FrequencyPenalty &&
+            a.ContextShift == b.ContextShift &&
+            a.CustomArguments == b.CustomArguments;
     }
 
     public string ProfileNameInput
@@ -677,11 +970,14 @@ public class MainViewModel : INotifyPropertyChanged
                 _isServerRunning = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(WindowTitleWithProfile));
+                OnPropertyChanged(nameof(CanOpenInBrowser));
                 // Notify commands that depend on IsServerRunning
                 if (StopServerCommand is AsyncRelayCommand stopCmd)
                     stopCmd.RaiseCanExecuteChanged();
                 if (UnloadModelCommand is AsyncRelayCommand unloadCmd)
                     unloadCmd.RaiseCanExecuteChanged();
+                if (OpenInBrowserCommand is AsyncRelayCommand openCmd)
+                    openCmd.RaiseCanExecuteChanged();
             }
         }
     }
@@ -727,6 +1023,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand StartServerCommand { get; }
     public ICommand StopServerCommand { get; }
     public ICommand UnloadModelCommand { get; }
+    public ICommand OpenInBrowserCommand { get; }
     public ICommand SaveProfileCommand { get; }
     public ICommand LoadProfileCommand { get; }
     public ICommand DeleteProfileCommand { get; }
@@ -741,8 +1038,15 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ShowWindowCommand { get; set; }
     public ICommand CloseFromTrayCommand { get; set; }
 
-    public bool CanStartServer => !string.IsNullOrEmpty(ExecutablePath) && 
-                                    (!string.IsNullOrEmpty(ModelPath) || !string.IsNullOrEmpty(ModelsDir));
+    /// <summary>
+    /// Set by MainWindow to allow the ViewModel to request opening the download dialog.
+    /// </summary>
+    public Func<Task>? OpenDownloadDialogFunc { get; set; }
+
+    public bool CanStartServer =>
+        !string.IsNullOrEmpty(ModelPath) || !string.IsNullOrEmpty(ModelsDir);
+
+    public bool CanOpenInBrowser => IsServerRunning && EnableWebUI != false;
 
     private async Task BrowseExecutableAsync()
     {
@@ -815,7 +1119,7 @@ public class MainViewModel : INotifyPropertyChanged
             ModelPath = ModelPath,
             ModelsDir = ModelsDir,
             Host = Host,
-            Port = Port,
+            Port = ParseNullableInt(Port) ?? 8080,
             ContextSize = ParseNullableInt(ContextSize),
             Threads = ParseNullableInt(Threads),
             GpuLayers = ParseNullableInt(GpuLayers),
@@ -839,7 +1143,19 @@ public class MainViewModel : INotifyPropertyChanged
             LogFilePath = LogFilePath,
             VerboseLogging = VerboseLogging,
             Alias = Alias,
-            CustomArguments = CustomArguments
+            CustomArguments = CustomArguments,
+            ParallelSlots = ParseNullableInt(ParallelSlots),
+            ContBatching = ContBatching,
+            Timeout = ParseNullableInt(Timeout),
+            CachePrompt = CachePrompt,
+            Mlock = Mlock,
+            Mmap = Mmap,
+            Reasoning = Reasoning,
+            ReasoningBudget = ParseNullableInt(ReasoningBudget),
+            Seed = ParseNullableInt(Seed),
+            PresencePenalty = ParseNullableDouble(PresencePenalty),
+            FrequencyPenalty = ParseNullableDouble(FrequencyPenalty),
+            ContextShift = ContextShift
         };
     }
 
@@ -850,7 +1166,7 @@ private void LoadConfigToUI(ServerConfiguration config)
         ModelPath = string.Empty;
         ModelsDir = string.Empty;
         Host = "127.0.0.1";
-        Port = 8080;
+        Port = "8080";
         ContextSize = string.Empty;
         Threads = string.Empty;
         GpuLayers = string.Empty;
@@ -874,6 +1190,18 @@ private void LoadConfigToUI(ServerConfiguration config)
         CacheTypeV = string.Empty;
         VerboseLogging = false;
         Alias = string.Empty;
+        ParallelSlots = string.Empty;
+        ContBatching = null;
+        Timeout = string.Empty;
+        CachePrompt = null;
+        Mlock = null;
+        Mmap = null;
+        Reasoning = null;
+        ReasoningBudget = string.Empty;
+        Seed = string.Empty;
+        PresencePenalty = string.Empty;
+        FrequencyPenalty = string.Empty;
+        ContextShift = null;
         CustomArguments = string.Empty;
         AutoRestart = false;
         // Note: ProfileNameInput and _loadedProfileName are NOT cleared here
@@ -884,7 +1212,7 @@ private void LoadConfigToUI(ServerConfiguration config)
         ModelPath = config.ModelPath ?? string.Empty;
         ModelsDir = config.ModelsDir ?? string.Empty;
         Host = config.Host ?? "127.0.0.1";
-        Port = config.Port;
+        Port = config.Port.ToString();
         ContextSize = config.ContextSize?.ToString() ?? string.Empty;
         Threads = config.Threads?.ToString() ?? string.Empty;
         GpuLayers = config.GpuLayers?.ToString() ?? string.Empty;
@@ -908,6 +1236,18 @@ private void LoadConfigToUI(ServerConfiguration config)
         CacheTypeV = config.CacheTypeV ?? string.Empty;
         VerboseLogging = config.VerboseLogging;
         Alias = config.Alias ?? string.Empty;
+        ParallelSlots = config.ParallelSlots?.ToString() ?? string.Empty;
+        ContBatching = config.ContBatching;
+        Timeout = config.Timeout?.ToString() ?? string.Empty;
+        CachePrompt = config.CachePrompt;
+        Mlock = config.Mlock;
+        Mmap = config.Mmap;
+        Reasoning = config.Reasoning;
+        ReasoningBudget = config.ReasoningBudget?.ToString() ?? string.Empty;
+        Seed = config.Seed?.ToString() ?? string.Empty;
+        PresencePenalty = config.PresencePenalty?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        FrequencyPenalty = config.FrequencyPenalty?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        ContextShift = config.ContextShift;
         _disabledArguments.Clear();
         _originalCustomArguments = string.Empty;
         CustomArguments = config.CustomArguments ?? string.Empty;
@@ -921,7 +1261,7 @@ private void LoadConfigToUI(ServerConfiguration config)
         ModelPath = string.Empty;
         ModelsDir = string.Empty;
         Host = "127.0.0.1";
-        Port = 8080;
+        Port = "8080";
         ContextSize = string.Empty;
         Threads = string.Empty;
         GpuLayers = string.Empty;
@@ -945,6 +1285,18 @@ private void LoadConfigToUI(ServerConfiguration config)
         CacheTypeV = string.Empty;
         VerboseLogging = false;
         Alias = string.Empty;
+        ParallelSlots = string.Empty;
+        ContBatching = null;
+        Timeout = string.Empty;
+        CachePrompt = null;
+        Mlock = null;
+        Mmap = null;
+        Reasoning = null;
+        ReasoningBudget = string.Empty;
+        Seed = string.Empty;
+        PresencePenalty = string.Empty;
+        FrequencyPenalty = string.Empty;
+        ContextShift = null;
         _disabledArguments.Clear();
         _originalCustomArguments = string.Empty;
         CustomArgumentItems.Clear();
@@ -1453,6 +1805,34 @@ public void RebuildCustomArgumentsFromToggles()
         try
         {
             var config = GetCurrentConfig();
+
+            if (string.IsNullOrEmpty(config.ExecutablePath))
+            {
+                var defaultPath = _downloadService.GetDefaultLlamaServerPath();
+                if (defaultPath != null)
+                {
+                    config.ExecutablePath = defaultPath;
+                }
+                else
+                {
+                    var prompt = LocalizedStrings.Instance.PromptDownloadLlama;
+                    var result = await MessageBox.ShowAsync(
+                        MainWindow.Instance!,
+                        prompt,
+                        LocalizedStrings.Instance.ConfirmTitle,
+                        MessageBoxButtons.YesNoCancel,
+                        MessageBoxIcon.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        if (OpenDownloadDialogFunc != null)
+                            await OpenDownloadDialogFunc();
+                        return;
+                    }
+                    return;
+                }
+            }
+
             await _serverService.StartAsync(config);
         }
         catch (Exception ex)
@@ -1496,6 +1876,19 @@ public void RebuildCustomArgumentsFromToggles()
     private async Task UnloadModelAsync()
     {
         await _serverService.UnloadModelAsync();
+    }
+
+    private async Task OpenInBrowserAsync()
+    {
+        try
+        {
+            var url = _serverService.BaseUrl;
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to open browser: {ex.Message}");
+        }
     }
 
     private void LoadProfiles()
@@ -1844,7 +2237,7 @@ public void RebuildCustomArgumentsFromToggles()
         ModelPath = string.Empty;
         ModelsDir = string.Empty;
         Host = "127.0.0.1";
-        Port = 8080;
+        Port = "8080";
         ContextSize = string.Empty;
         Threads = string.Empty;
         GpuLayers = string.Empty;
@@ -1862,6 +2255,18 @@ public void RebuildCustomArgumentsFromToggles()
         LogFilePath = string.Empty;
         VerboseLogging = false;
         Alias = string.Empty;
+        ParallelSlots = string.Empty;
+        ContBatching = null;
+        Timeout = string.Empty;
+        CachePrompt = null;
+        Mlock = null;
+        Mmap = null;
+        Reasoning = null;
+        ReasoningBudget = string.Empty;
+        Seed = string.Empty;
+        PresencePenalty = string.Empty;
+        FrequencyPenalty = string.Empty;
+        ContextShift = null;
 
         LoadConfigToUI(config);
     }
@@ -1953,6 +2358,38 @@ public void RebuildCustomArgumentsFromToggles()
         {
             // Ignore - dispatcher is shutting down
         }
+    }
+
+    private async Task CheckForLlamaUpdateAsync()
+    {
+        try
+        {
+            if (!_downloadService.IsLlamaCppInstalled()) return;
+
+            var latestTag = await _downloadService.GetLatestReleaseTagAsync();
+            if (latestTag != null && latestTag != _llamaCppInstalledTag)
+            {
+                var release = await _downloadService.GetReleaseByTagAsync(latestTag);
+                if (release != null)
+                {
+                    IsLlamaUpdateAvailable = true;
+                    var desc = release.Body.Length > 200 ? release.Body[..200] + "..." : release.Body;
+                    LlamaUpdateTooltip = $"{release.Tag}\n{release.PublishedAt:yyyy-MM-dd HH:mm}\n{desc}";
+                }
+            }
+        }
+        catch { }
+    }
+
+    public void UpdateInstalledTag(string tag)
+    {
+        _llamaCppInstalledTag = tag;
+        IsLlamaUpdateAvailable = false;
+        OnPropertyChanged(nameof(CanStartServer));
+        OnPropertyChanged(nameof(ShowLlamaUpdateButton));
+        OnPropertyChanged(nameof(ShowLlamaDownloadButton));
+        OnPropertyChanged(nameof(ShowLlamaChangeVersionButton));
+        OnPropertyChanged(nameof(LlamaButtonText));
     }
 
     public async Task SaveSettingsAsync()

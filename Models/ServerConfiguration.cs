@@ -93,6 +93,42 @@ public class ServerConfiguration
     [JsonPropertyName("customArguments")]
     public string CustomArguments { get; set; } = string.Empty;
 
+    [JsonPropertyName("parallelSlots")]
+    public int? ParallelSlots { get; set; }
+
+    [JsonPropertyName("contBatching")]
+    public bool? ContBatching { get; set; }
+
+    [JsonPropertyName("timeout")]
+    public int? Timeout { get; set; }
+
+    [JsonPropertyName("cachePrompt")]
+    public bool? CachePrompt { get; set; }
+
+    [JsonPropertyName("mlock")]
+    public bool? Mlock { get; set; }
+
+    [JsonPropertyName("mmap")]
+    public bool? Mmap { get; set; }
+
+    [JsonPropertyName("reasoning")]
+    public bool? Reasoning { get; set; }
+
+    [JsonPropertyName("reasoningBudget")]
+    public int? ReasoningBudget { get; set; }
+
+    [JsonPropertyName("seed")]
+    public int? Seed { get; set; }
+
+    [JsonPropertyName("presencePenalty")]
+    public double? PresencePenalty { get; set; }
+
+    [JsonPropertyName("frequencyPenalty")]
+    public double? FrequencyPenalty { get; set; }
+
+    [JsonPropertyName("contextShift")]
+    public bool? ContextShift { get; set; }
+
     public ServerConfiguration Clone()
     {
         return new ServerConfiguration
@@ -125,7 +161,19 @@ public class ServerConfiguration
             LogFilePath = LogFilePath,
             VerboseLogging = VerboseLogging,
             Alias = Alias,
-            CustomArguments = CustomArguments
+            CustomArguments = CustomArguments,
+            ParallelSlots = ParallelSlots,
+            ContBatching = ContBatching,
+            Timeout = Timeout,
+            CachePrompt = CachePrompt,
+            Mlock = Mlock,
+            Mmap = Mmap,
+            Reasoning = Reasoning,
+            ReasoningBudget = ReasoningBudget,
+            Seed = Seed,
+            PresencePenalty = PresencePenalty,
+            FrequencyPenalty = FrequencyPenalty,
+            ContextShift = ContextShift
         };
     }
 
@@ -177,6 +225,40 @@ public class ServerConfiguration
         ["--verbose"] = new("VerboseLogging", ArgType.BoolSimple),
         ["-a"] = new("Alias", ArgType.String),
         ["--alias"] = new("Alias", ArgType.String),
+
+        ["-np"] = new("ParallelSlots", ArgType.Int),
+        ["--parallel"] = new("ParallelSlots", ArgType.Int),
+
+        ["-cb"] = new("ContBatching", ArgType.BoolFlag),
+        ["--cont-batching"] = new("ContBatching", ArgType.BoolFlag),
+        ["-nocb"] = new("ContBatching", ArgType.BoolFlagInverted),
+        ["--no-cont-batching"] = new("ContBatching", ArgType.BoolFlagInverted),
+
+        ["-to"] = new("Timeout", ArgType.Int),
+        ["--timeout"] = new("Timeout", ArgType.Int),
+
+        ["--cache-prompt"] = new("CachePrompt", ArgType.BoolFlag),
+        ["--no-cache-prompt"] = new("CachePrompt", ArgType.BoolFlagInverted),
+
+        ["--mlock"] = new("Mlock", ArgType.BoolSimple),
+
+        ["--mmap"] = new("Mmap", ArgType.BoolFlag),
+        ["--no-mmap"] = new("Mmap", ArgType.BoolFlagInverted),
+
+        ["-rea"] = new("Reasoning", ArgType.BoolOnOff),
+        ["--reasoning"] = new("Reasoning", ArgType.BoolOnOff),
+
+        ["--reasoning-budget"] = new("ReasoningBudget", ArgType.Int),
+
+        ["-s"] = new("Seed", ArgType.Int),
+        ["--seed"] = new("Seed", ArgType.Int),
+
+        ["--presence-penalty"] = new("PresencePenalty", ArgType.Double),
+
+        ["--frequency-penalty"] = new("FrequencyPenalty", ArgType.Double),
+
+        ["--context-shift"] = new("ContextShift", ArgType.BoolFlag),
+        ["--no-context-shift"] = new("ContextShift", ArgType.BoolFlagInverted),
     };
 
     public static readonly Dictionary<string, string[]> MutuallyExclusiveGroups = new()
@@ -189,6 +271,16 @@ public class ServerConfiguration
         ["--embeddings"] = new[] { "--embedding", "--embeddings" },
         ["--slots"] = new[] { "--slots", "--no-slots" },
         ["--no-slots"] = new[] { "--slots", "--no-slots" },
+        ["-cb"] = new[] { "-cb", "--cont-batching", "-nocb", "--no-cont-batching" },
+        ["--cont-batching"] = new[] { "-cb", "--cont-batching", "-nocb", "--no-cont-batching" },
+        ["-nocb"] = new[] { "-cb", "--cont-batching", "-nocb", "--no-cont-batching" },
+        ["--no-cont-batching"] = new[] { "-cb", "--cont-batching", "-nocb", "--no-cont-batching" },
+        ["--cache-prompt"] = new[] { "--cache-prompt", "--no-cache-prompt" },
+        ["--no-cache-prompt"] = new[] { "--cache-prompt", "--no-cache-prompt" },
+        ["--mmap"] = new[] { "--mmap", "--no-mmap" },
+        ["--no-mmap"] = new[] { "--mmap", "--no-mmap" },
+        ["--context-shift"] = new[] { "--context-shift", "--no-context-shift" },
+        ["--no-context-shift"] = new[] { "--context-shift", "--no-context-shift" },
     };
 }
 

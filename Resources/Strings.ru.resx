@@ -297,85 +297,85 @@
     <value>Закрыть</value>
   </data>
   <data name="TooltipModelPath" xml:space="preserve">
-    <value>путь к файлу модели для загрузки</value>
+    <value>Путь к файлу модели GGUF для загрузки (-m). Поддерживает перетаскивание.</value>
   </data>
   <data name="TooltipModelsDir" xml:space="preserve">
-    <value>каталог с моделями для сервера</value>
+    <value>Каталог с моделями для маршрутизации нескольких моделей (--models-dir). Оставьте пустым для одной модели.</value>
   </data>
   <data name="TooltipHost" xml:space="preserve">
-    <value>IP-адрес для прослушивания</value>
+    <value>IP-адрес сервера. По умолчанию: 127.0.0.1 (только localhost). Используйте 0.0.0.0 для всех интерфейсов.</value>
   </data>
   <data name="TooltipPort" xml:space="preserve">
-    <value>порт для прослушивания</value>
+    <value>TCP-порт сервера. По умолчанию: 8080</value>
   </data>
   <data name="TooltipContextSize" xml:space="preserve">
-    <value>размер контекста промпта</value>
+    <value>Размер контекста промпта в токенах (-c). Большие значения требуют больше RAM/VRAM. По умолчанию: 512</value>
   </data>
   <data name="TooltipThreads" xml:space="preserve">
-    <value>количество потоков CPU</value>
+    <value>Количество потоков CPU для генерации (-t). Больше потоков = быстрее, но с убывающей отдачей.</value>
   </data>
   <data name="TooltipGpuLayers" xml:space="preserve">
-    <value>макс количество слоев в VRAM</value>
+    <value>Количество слоёв модели для выгрузки на GPU (-ngl). 0 = только CPU, -1 = все слои. По умолчанию: 0</value>
   </data>
   <data name="TooltipTemperature" xml:space="preserve">
-    <value>температура</value>
+    <value>Управляет случайностью вывода (-temp). Выше = креативнее, ниже = точнее. По умолчанию: 0.8</value>
   </data>
   <data name="TooltipMaxTokens" xml:space="preserve">
-    <value>количество токенов для предсказания</value>
+    <value>Максимальное количество токенов для генерации за ответ (-n). По умолчанию: 256</value>
   </data>
   <data name="TooltipBatchSize" xml:space="preserve">
-    <value>логический максимальный размер батча</value>
+    <value>Максимальное количество токенов, обрабатываемых за раз при оценке промпта (-b). По умолчанию: 2048</value>
   </data>
   <data name="TooltipUBatchSize" xml:space="preserve">
-    <value>физический максимальный размер батча</value>
+    <value>Физический размер батча для обработки (-ubatch). Должен быть ≤ размера батча. По умолчанию: 512</value>
   </data>
   <data name="TooltipMinP" xml:space="preserve">
-    <value>min-p семплирование</value>
+    <value>Порог минимальной вероятности для сэмплирования токенов (--min-p). Отсеивает маловероятные токены. По умолчанию: 0.05</value>
   </data>
   <data name="TooltipMMProj" xml:space="preserve">
-    <value>путь к файлу мультимодального проектора</value>
+    <value>Путь к файлу мультимодального проектора для моделей зрения (--mmproj). Необходим для моделей вроде LLaVA.</value>
   </data>
   <data name="TooltipCacheTypeK" xml:space="preserve">
-    <value>тип данных KV-кэша для K</value>
+    <value>Тип данных для кэша ключей (--cache-type-k). Опции: f16 (по умолчанию), q8_0, q4_0 и т.д. Меньшая точность = меньше VRAM.</value>
   </data>
   <data name="TooltipCacheTypeV" xml:space="preserve">
-    <value>тип данных KV-кэша для V</value>
+    <value>Тип данных для кэша значений (--cache-type-v). Опции: f16 (по умолчанию), q8_0, q4_0 и т.д. Меньшая точность = меньше VRAM.</value>
   </data>
   <data name="TooltipTopK" xml:space="preserve">
-    <value>top-k семплирование</value>
+    <value>Ограничивает выбор токенов до K наиболее вероятных (--top-k). Меньше = меньше разнообразия. По умолчанию: 40</value>
   </data>
   <data name="TooltipTopP" xml:space="preserve">
-    <value>top-p семплирование</value>
+    <value>Порог nucleus-сэмплирования (--top-p). Оставляет токены с кумулятивной вероятностью ≤ P. По умолчанию: 0.95</value>
   </data>
   <data name="TooltipRepeatPenalty" xml:space="preserve">
-    <value>штраф за повторяющуюся последовательность токенов</value>
+    <value>Штраф за повторение одинаковых токенов (--repeat-penalty). Значения &gt; 1.0 уменьшают повторения. По умолчанию: 1.1</value>
   </data>
   <data name="TooltipFlashAttention" xml:space="preserve">
-    <value>использование Flash Attention</value>
+    <value>Включить Flash Attention для более быстрого и экономичного по памяти вычисления внимания</value>
   </data>
   <data name="TooltipWebUI" xml:space="preserve">
-    <value>включить веб-интерфейс</value>
+    <value>Включить встроенный веб-чат, доступный из браузера</value>
   </data>
   <data name="TooltipEmbedding" xml:space="preserve">
-    <value>ограничить только режимом эмбеддинга</value>
+    <value>Ограничить сервер режимом эмбеддинга. Отключает endpoint чат-генерации.</value>
   </data>
   <data name="TooltipSlots" xml:space="preserve">
-    <value>предоставить endpoint мониторинга слотов</value>
+    <value>Включить endpoint /slots для мониторинга активных слотов генерации</value>
   </data>
   <data name="TooltipMetrics" xml:space="preserve">
-    <value>включить endpoint метрик Prometheus</value>
+    <value>Включить метрики в формате Prometheus на /metrics для мониторинга</value>
   </data>
   <data name="TooltipApiKey" xml:space="preserve">
-    <value>API ключ для аутентификации</value>
+    <value>API-ключ для аутентификации запросов. Клиенты отправляют его в заголовке Authorization.</value>
   </data>
   <data name="TooltipAlias" xml:space="preserve">
-    <value>установить псевдонимы имени модели</value>
+    <value>Пользовательское имя модели в ответе API (--alias). Полезно при использовании --models-dir.</value>
   </data>
   <data name="TooltipLogFile" xml:space="preserve">
-    <value>Вести лог в файл</value>
+    <value>Путь к файлу для записи вывода сервера (--log-file)</value>
   </data>
   <data name="TooltipCustomArguments" xml:space="preserve">
-    <value>Дополнительные аргументы командной строки</value>
+    <value>Любые дополнительные аргументы CLI llama-server, по одному на строку. Напр. --special-flag value</value>
   </data>
   <data name="Rename" xml:space="preserve">
     <value>Переименовать</value>
@@ -451,5 +451,230 @@
   </data>
   <data name="TooltipCurrentCommand" xml:space="preserve">
     <value>Нажмите, чтобы скопировать команду в буфер обмена</value>
+  </data>
+  <data name="DownloadLlama" xml:space="preserve">
+    <value>Загрузить llama</value>
+  </data>
+  <data name="UpdateLlama" xml:space="preserve">
+    <value>Обновить llama</value>
+  </data>
+  <data name="ExecutablePathPlaceholder" xml:space="preserve">
+    <value>Оставьте пустым для сервера по умолчанию</value>
+  </data>
+  <data name="DownloadDialogTitle" xml:space="preserve">
+    <value>Загрузка llama.cpp</value>
+  </data>
+  <data name="SelectRelease" xml:space="preserve">
+    <value>Выберите релиз:</value>
+  </data>
+  <data name="SelectBuild" xml:space="preserve">
+    <value>Выберите сборку:</value>
+  </data>
+  <data name="DownloadButton" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="LoadingReleases" xml:space="preserve">
+    <value>Загрузка списка релизов...</value>
+  </data>
+  <data name="ReleaseNotFound" xml:space="preserve">
+    <value>Релиз не найден</value>
+  </data>
+  <data name="NoAssetsForOS" xml:space="preserve">
+    <value>Совместимые сборки для вашей ОС не найдены</value>
+  </data>
+  <data name="Downloading" xml:space="preserve">
+    <value>Загрузка...</value>
+  </data>
+  <data name="Extracting" xml:space="preserve">
+    <value>Распаковка...</value>
+  </data>
+  <data name="DownloadComplete" xml:space="preserve">
+    <value>Загрузка завершена!</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>Ошибка загрузки: {0}</value>
+  </data>
+  <data name="PromptDownloadLlama" xml:space="preserve">
+    <value>Исполняемый файл llama-server не указан. Загрузить скомпилированные файлы llama.cpp?</value>
+  </data>
+  <data name="AddToPathPrompt" xml:space="preserve">
+    <value>Добавить директорию llama.cpp в переменную окружения PATH?</value>
+  </data>
+  <data name="ChangeVersionLlama" xml:space="preserve">
+    <value>Сменить версию llama</value>
+  </data>
+  <data name="OpenInBrowser" xml:space="preserve">
+    <value>Открыть в браузере</value>
+  </data>
+  <data name="TooltipOpenInBrowser" xml:space="preserve">
+    <value>Открыть адрес сервера в браузере по умолчанию</value>
+  </data>
+  <data name="PlaceholderModelPath" xml:space="preserve">
+    <value>напр. models/llama-3.1-8b-Q4_K_M.gguf</value>
+  </data>
+  <data name="PlaceholderModelsDir" xml:space="preserve">
+    <value>напр. ./models</value>
+  </data>
+  <data name="PlaceholderHost" xml:space="preserve">
+    <value>По умолчанию: 127.0.0.1</value>
+  </data>
+  <data name="PlaceholderPort" xml:space="preserve">
+    <value>По умолчанию: 8080</value>
+  </data>
+  <data name="PlaceholderContextSize" xml:space="preserve">
+    <value>По умолчанию: 512</value>
+  </data>
+  <data name="PlaceholderThreads" xml:space="preserve">
+    <value>напр. 8</value>
+  </data>
+  <data name="PlaceholderGpuLayers" xml:space="preserve">
+    <value>По умолчанию: 0 (только CPU)</value>
+  </data>
+  <data name="PlaceholderTemperature" xml:space="preserve">
+    <value>По умолчанию: 0.8</value>
+  </data>
+  <data name="PlaceholderMaxTokens" xml:space="preserve">
+    <value>По умолчанию: 256</value>
+  </data>
+  <data name="PlaceholderBatchSize" xml:space="preserve">
+    <value>По умолчанию: 2048</value>
+  </data>
+  <data name="PlaceholderUBatchSize" xml:space="preserve">
+    <value>По умолчанию: 512</value>
+  </data>
+  <data name="PlaceholderMinP" xml:space="preserve">
+    <value>По умолчанию: 0.05</value>
+  </data>
+  <data name="PlaceholderTopK" xml:space="preserve">
+    <value>По умолчанию: 40</value>
+  </data>
+  <data name="PlaceholderTopP" xml:space="preserve">
+    <value>По умолчанию: 0.95</value>
+  </data>
+  <data name="PlaceholderRepeatPenalty" xml:space="preserve">
+    <value>По умолчанию: 1.1</value>
+  </data>
+  <data name="PlaceholderApiKey" xml:space="preserve">
+    <value>API-ключ для аутентификации</value>
+  </data>
+  <data name="PlaceholderAlias" xml:space="preserve">
+    <value>Пользовательское имя модели в API</value>
+  </data>
+  <data name="PlaceholderLogFilePath" xml:space="preserve">
+    <value>напр. server.log</value>
+  </data>
+  <data name="PlaceholderMmprojPath" xml:space="preserve">
+    <value>Файл мультимодального проектора</value>
+  </data>
+  <data name="PlaceholderCustomArguments" xml:space="preserve">
+    <value>напр. --special-flag value</value>
+  </data>
+  <data name="PortValidationWarning" xml:space="preserve">
+    <value>Некорректный номер порта</value>
+  </data>
+  <data name="ParallelSlots" xml:space="preserve">
+    <value>Параллельные слоты</value>
+  </data>
+  <data name="ContBatching" xml:space="preserve">
+    <value>Непрер. батчинг</value>
+  </data>
+  <data name="Timeout" xml:space="preserve">
+    <value>Таймаут (сек)</value>
+  </data>
+  <data name="CachePrompt" xml:space="preserve">
+    <value>Кэш промптов</value>
+  </data>
+  <data name="Mlock" xml:space="preserve">
+    <value>MLock (RAM)</value>
+  </data>
+  <data name="Mmap" xml:space="preserve">
+    <value>MMap</value>
+  </data>
+  <data name="Reasoning" xml:space="preserve">
+    <value>Reasoning</value>
+  </data>
+  <data name="ReasoningBudget" xml:space="preserve">
+    <value>Бюджет Reasoning</value>
+  </data>
+  <data name="Seed" xml:space="preserve">
+    <value>Seed</value>
+  </data>
+  <data name="PresencePenalty" xml:space="preserve">
+    <value>Штраф (наличие)</value>
+  </data>
+  <data name="FrequencyPenalty" xml:space="preserve">
+    <value>Штраф (частота)</value>
+  </data>
+  <data name="ContextShift" xml:space="preserve">
+    <value>Сдвиг контекста</value>
+  </data>
+  <data name="TooltipParallelSlots" xml:space="preserve">
+    <value>Количество параллельных слотов запросов (-np, --parallel). По умолчанию: авто (-1)</value>
+  </data>
+  <data name="TooltipContBatching" xml:space="preserve">
+    <value>Включить непрерывный батчинг (-cb). По умолчанию: включено</value>
+  </data>
+  <data name="TooltipTimeout" xml:space="preserve">
+    <value>Таймаут чтения/записи сервера в секундах (-to). По умолчанию: 600</value>
+  </data>
+  <data name="TooltipCachePrompt" xml:space="preserve">
+    <value>Кэшировать промпты для повторных запросов (--cache-prompt). По умолчанию: включено</value>
+  </data>
+  <data name="TooltipMlock" xml:space="preserve">
+    <value>Удерживать модель в RAM, предотвращая своппинг (--mlock)</value>
+  </data>
+  <data name="TooltipMmap" xml:space="preserve">
+    <value>Использовать mmap для загрузки модели (--mmap). Отключить для медленной загрузки, но меньшего pageout. По умолчанию: включено</value>
+  </data>
+  <data name="TooltipReasoning" xml:space="preserve">
+    <value>Включить режим reasoning/мышления (-rea). По умолчанию: авто (определяется из модели)</value>
+  </data>
+  <data name="TooltipReasoningBudget" xml:space="preserve">
+    <value>Бюджет токенов для размышлений (--reasoning-budget). -1=безлимит, 0=остановка</value>
+  </data>
+  <data name="TooltipSeed" xml:space="preserve">
+    <value>Seed ГСЧ для воспроизводимости вывода (-s, --seed). -1=случайный</value>
+  </data>
+  <data name="TooltipPresencePenalty" xml:space="preserve">
+    <value>Штраф за присутствие токена для уменьшения повторений (--presence-penalty). По умолчанию: 0.0</value>
+  </data>
+  <data name="TooltipFrequencyPenalty" xml:space="preserve">
+    <value>Штраф за частоту токена для уменьшения повторений (--frequency-penalty). По умолчанию: 0.0</value>
+  </data>
+  <data name="TooltipContextShift" xml:space="preserve">
+    <value>Включить сдвиг контекста для бесконечной генерации (--context-shift). По умолчанию: отключено</value>
+  </data>
+  <data name="PlaceholderParallelSlots" xml:space="preserve">
+    <value>По умолчанию: авто (-1)</value>
+  </data>
+  <data name="PlaceholderTimeout" xml:space="preserve">
+    <value>По умолчанию: 600</value>
+  </data>
+  <data name="PlaceholderReasoningBudget" xml:space="preserve">
+    <value>-1 (безлимит)</value>
+  </data>
+  <data name="PlaceholderSeed" xml:space="preserve">
+    <value>-1 (случайный)</value>
+  </data>
+  <data name="PlaceholderPresencePenalty" xml:space="preserve">
+    <value>По умолчанию: 0.0</value>
+  </data>
+  <data name="PlaceholderFrequencyPenalty" xml:space="preserve">
+    <value>По умолчанию: 0.0</value>
+  </data>
+  <data name="FeatureNotSupported" xml:space="preserve">
+    <value>Не поддерживается данной версией llama-server</value>
+  </data>
+  <data name="AboutTitle" xml:space="preserve">
+    <value>О программе</value>
+  </data>
+  <data name="Developer" xml:space="preserve">
+    <value>Разработчик</value>
+  </data>
+  <data name="AppRepository" xml:space="preserve">
+    <value>Репозиторий:</value>
+  </data>
+  <data name="TooltipAbout" xml:space="preserve">
+    <value>О приложении</value>
   </data>
 </root>

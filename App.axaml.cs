@@ -190,6 +190,7 @@ public partial class App : Application
         _trayMenu.Add(new NativeMenuItem(GetTrayMenuItemText(LocalizedStrings.Instance.StartServer)) { Command = new CommandAdapter(_viewModel!.StartServerCommand) });
         _trayMenu.Add(new NativeMenuItem(GetTrayMenuItemText(LocalizedStrings.Instance.StopServer)) { Command = new CommandAdapter(_viewModel!.StopServerCommand) });
         _trayMenu.Add(new NativeMenuItem(LocalizedStrings.Instance.UnloadModel) { Command = new CommandAdapter(_viewModel!.UnloadModelCommand) });
+        _trayMenu.Add(new NativeMenuItem(LocalizedStrings.Instance.OpenInBrowser) { Command = new CommandAdapter(_viewModel!.OpenInBrowserCommand) });
         
         _trayMenu.Add(new NativeMenuItemSeparator());
         _trayMenu.Add(new NativeMenuItem(LocalizedStrings.Instance.Close) { Command = new CommandAdapter(closeCmd) });

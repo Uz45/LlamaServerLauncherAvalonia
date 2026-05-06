@@ -185,6 +185,30 @@ public static class CommandLineBuilder
         AddIfNotOverridden(args, "--top-p", config.TopP?.ToString(CultureInfo.InvariantCulture));
         AddIfNotOverridden(args, "--repeat-penalty", config.RepeatPenalty?.ToString(CultureInfo.InvariantCulture));
 
+        AddIfNotOverridden(args, "-np", config.ParallelSlots?.ToString());
+        AddIfNotOverridden(args, "-to", config.Timeout?.ToString());
+        AddIfNotOverridden(args, "-s", config.Seed?.ToString());
+        AddIfNotOverridden(args, "--presence-penalty", config.PresencePenalty?.ToString(CultureInfo.InvariantCulture));
+        AddIfNotOverridden(args, "--frequency-penalty", config.FrequencyPenalty?.ToString(CultureInfo.InvariantCulture));
+        AddIfNotOverridden(args, "--reasoning-budget", config.ReasoningBudget?.ToString());
+
+        AddBoolOnOff(args, "-rea", config.Reasoning);
+
+        AddBoolFlag(args, "-cb", config.ContBatching, "--no-cont-batching");
+        AddBoolFlag(args, "--cache-prompt", config.CachePrompt, "--no-cache-prompt");
+        AddBoolFlag(args, "--context-shift", config.ContextShift, "--no-context-shift");
+        AddBoolFlag(args, "--mmap", config.Mmap, "--no-mmap");
+
+        if (config.Mlock == true)
+        {
+            string? mlockProp = GetPropertyNameForFlag("--mlock");
+            if (mlockProp != null && !processedProperties.Contains(mlockProp))
+            {
+                processedProperties.Add(mlockProp);
+                args.Add("--mlock");
+            }
+        }
+
         AddBoolOnOff(args, "-fa", config.FlashAttention);
 
         string? actualWebuiFlag = GetActualCustomFlag("--webui", "--no-webui");
