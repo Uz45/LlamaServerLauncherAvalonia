@@ -249,7 +249,23 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
 
         try
         {
-            await _downloadService.DownloadAndExtractAsync(SelectedAsset, progress, _cts.Token);
+            ReleaseAsset? cudaDllAsset = null;
+            if (_downloadService.IsCudaVariant(SelectedAsset) && _selectedRelease != null)
+            {
+                cudaDllAsset = _downloadService.FindCudaDllAsset(SelectedAsset, _selectedRelease.Assets);
+            }
+
+            if (cudaDllAsset != null)
+            {
+                var totalSize = SelectedAsset.SizeMB + cudaDllAsset.SizeMB;
+                StatusMessage = $"Downloading {totalSize:F1} MB (llama.cpp + CUDA)";
+            }
+            else
+            {
+                StatusMessage = LocalizedStrings.GetString("Downloading");
+            }
+
+            await _downloadService.DownloadAndExtractAsync(SelectedAsset, cudaDllAsset, progress, _cts.Token);
 
             if (!_downloadService.IsInPath(_downloadService.InstallDirectory))
             {

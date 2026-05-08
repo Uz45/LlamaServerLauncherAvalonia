@@ -75,15 +75,62 @@ public class LlamaCppDownloadService
         return ParseSingleRelease(json);
     }
 
+    public static readonly string[] CudaVersionPatterns = { "cuda-12.1", "cuda-12.2", "cuda-12.3", "cuda-12.4", "cuda-12.5", "cuda-12.6", "cuda-13.1" };
+    private string? _currentCudaTag;
+
+    public bool IsCudaAsset(ReleaseAsset asset)
+    {
+        var name = asset.Name.ToLowerInvariant();
+        return CudaVersionPatterns.Any(p => name.Contains(p));
+    }
+
+    public ReleaseAsset? FindCudaDllAsset(ReleaseAsset cudaAsset, List<ReleaseAsset> allAssets)
+    {
+        _currentCudaTag = null;
+        var name = cudaAsset.Name.ToLowerInvariant();
+        var cudaVersion = ExtractCudaVersion(name);
+        if (cudaVersion == null || _currentCudaTag == null) return null;
+
+        foreach (var a in allAssets)
+        {
+            var aName = a.Name.ToLowerInvariant();
+            if (aName.StartsWith("cudart-") && aName.Contains($"cuda-{cudaVersion}-") && aName.EndsWith(".zip"))
+            {
+                return a;
+            }
+        }
+        
+        return null;
+    }
+
+    private string? ExtractCudaVersion(string assetName)
+    {
+        foreach (var version in CudaVersionPatterns)
+        {
+            var idx = assetName.IndexOf(version);
+            if (idx > 0)
+            {
+                var before = assetName[..idx];
+                var tagStart = before.LastIndexOf('-');
+                if (tagStart > 0)
+                {
+                    _currentCudaTag = before[(tagStart + 1)..];
+                    return version.Replace("cuda-", "");
+                }
+            }
+        }
+        return null;
+    }
+
     public List<ReleaseAsset> FilterAssetsForCurrentOS(List<ReleaseAsset> assets)
     {
         return assets.Where(a =>
         {
             var name = a.Name.ToLowerInvariant();
-            if (name.StartsWith("cudart-")) return false;
+            if (name.StartsWith("cudart-llama-")) return false;
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return name.Contains("-win-") && name.EndsWith(".zip");
+                return (name.Contains("-win-") && name.EndsWith(".zip")) || CudaVersionPatterns.Any(p => name.Contains(p));
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 return name.Contains("-ubuntu-") && name.EndsWith(".tar.gz");
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -92,9 +139,21 @@ public class LlamaCppDownloadService
         }).ToList();
     }
 
+    public bool IsCudaVariant(ReleaseAsset asset)
+    {
+        var name = asset.Name.ToLowerInvariant();
+        return CudaVersionPatterns.Any(p => name.Contains(p));
+    }
+
     public async Task DownloadAndExtractAsync(ReleaseAsset asset, IProgress<double>? progress, CancellationToken ct)
     {
+        await DownloadAndExtractAsync(asset, null, progress, ct);
+    }
+
+    public async Task DownloadAndExtractAsync(ReleaseAsset asset, ReleaseAsset? cudaDllAsset, IProgress<double>? progress, CancellationToken ct)
+    {
         var tempFile = Path.Combine(Path.GetTempPath(), asset.Name);
+        string? tempFileCuda = null;
 
         try
         {
@@ -119,6 +178,31 @@ public class LlamaCppDownloadService
                 }
             }
 
+            if (cudaDllAsset != null)
+            {
+                tempFileCuda = Path.Combine(Path.GetTempPath(), cudaDllAsset.Name);
+                using (var response = await _http.GetAsync(cudaDllAsset.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct))
+                {
+                    response.EnsureSuccessStatusCode();
+                    var totalBytes = response.Content.Headers.ContentLength ?? cudaDllAsset.Size;
+                    var buffer = new byte[81920];
+                    long bytesRead = 0;
+
+                    using (var contentStream = await response.Content.ReadAsStreamAsync(ct))
+                    using (var fileStream = new FileStream(tempFileCuda, FileMode.Create, FileAccess.Write, FileShare.None, buffer.Length, true))
+                    {
+                        int read;
+                        while ((read = await contentStream.ReadAsync(buffer, ct)) > 0)
+                        {
+                            await fileStream.WriteAsync(buffer, 0, read, ct);
+                            bytesRead += read;
+                            if (totalBytes > 0)
+                                progress?.Report((double)bytesRead / totalBytes * 100);
+                        }
+                    }
+                }
+            }
+
             progress?.Report(-1);
 
             if (Directory.Exists(_installDir) || File.Exists(_installDir))
@@ -135,10 +219,23 @@ public class LlamaCppDownloadService
             {
                 ExtractTarGzWithFlatten(tempFile, _installDir);
             }
+
+            if (cudaDllAsset != null && tempFileCuda != null && File.Exists(tempFileCuda))
+            {
+                if (cudaDllAsset.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    ExtractZipWithFlatten(tempFileCuda, _installDir);
+                }
+                else if (cudaDllAsset.Name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                {
+                    ExtractTarGzWithFlatten(tempFileCuda, _installDir);
+                }
+            }
         }
         finally
         {
             try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+            try { if (tempFileCuda != null && File.Exists(tempFileCuda)) File.Delete(tempFileCuda); } catch { }
         }
     }
 
