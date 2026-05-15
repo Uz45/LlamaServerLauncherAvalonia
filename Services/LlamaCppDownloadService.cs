@@ -38,6 +38,7 @@ public class LlamaCppDownloadService
     };
 
     private const string RepoApiUrl = "https://api.github.com/repos/ggml-org/llama.cpp/releases";
+    private const string LauncherRepoApiUrl = "https://api.github.com/repos/pytraveler/LlamaServerLauncherAvalonia/releases";
     private readonly string _installDir;
 
     public LlamaCppDownloadService(string? appDataPath = null)
@@ -213,6 +214,23 @@ public class LlamaCppDownloadService
         {
             return null;
         }
+    }
+
+    public async Task<List<ReleaseAsset>> GetExperimentalBuildsAsync()
+    {
+        var url = $"{LauncherRepoApiUrl}?per_page=1";
+        using var resp = await _http.GetAsync(url);
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadAsStringAsync();
+        var releases = ParseReleases(json);
+        if (releases.Count == 0) return new();
+
+        var experimental = releases[0].Assets
+            .Where(a => a.Name.StartsWith("experimental-llama-cpp-", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return FilterAssetsForCurrentOS(experimental);
     }
 
     public bool IsInPath(string directory)

@@ -276,6 +276,7 @@ public string English => GetString("English");
     public string Developer => GetString("Developer");
     public string AppRepository => GetString("AppRepository");
     public string TooltipAbout => GetString("TooltipAbout");
+    public string ThanksMethelina => GetString("ThanksMethelina");
 
     public string UseDefaultDataPath => GetString("UseDefaultDataPath");
     public string DataPathTooltipDefault => GetString("DataPathTooltipDefault");
@@ -301,4 +302,11 @@ public string English => GetString("English");
     public string AppUpdateRestarting => GetString("AppUpdateRestarting");
     public string AppUpdateFailed => GetString("AppUpdateFailed");
     public string AppUpdateConfirm => GetString("AppUpdateConfirm");
+
+    public string TabOfficial => GetString("TabOfficial");
+    public string TabExperimental => GetString("TabExperimental");
+    public string ExperimentalWarning => GetString("ExperimentalWarning");
+    public string ExperimentalConfirmDownload => GetString("ExperimentalConfirmDownload");
+    public string NoExperimentalBuilds => GetString("NoExperimentalBuilds");
+    public string LoadingExperimental => GetString("LoadingExperimental");
 }

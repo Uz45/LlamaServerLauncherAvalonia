@@ -10,6 +10,8 @@ using LlamaServerLauncher.Services;
 
 namespace LlamaServerLauncher.ViewModels;
 
+public enum DownloadSource { Official, Experimental }
+
 public class DownloadDialogViewModel : INotifyPropertyChanged
 {
     private readonly LlamaCppDownloadService _downloadService;
@@ -20,6 +22,7 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
 
     public ObservableCollection<ReleaseInfo> Releases { get; } = new();
     public ObservableCollection<ReleaseAsset> AvailableAssets { get; } = new();
+    public ObservableCollection<ReleaseAsset> ExperimentalAssets { get; } = new();
 
     private ReleaseInfo? _selectedRelease;
     public ReleaseInfo? SelectedRelease
@@ -53,11 +56,52 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
         }
     }
 
+    private ReleaseAsset? _selectedExperimentalAsset;
+    public ReleaseAsset? SelectedExperimentalAsset
+    {
+        get => _selectedExperimentalAsset;
+        set
+        {
+            if (_selectedExperimentalAsset != value)
+            {
+                _selectedExperimentalAsset = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanDownload));
+            }
+        }
+    }
+
+    private DownloadSource _selectedSource = DownloadSource.Official;
+    public int SelectedSourceIndex
+    {
+        get => (int)_selectedSource;
+        set
+        {
+            var source = (DownloadSource)value;
+            if (_selectedSource != source)
+            {
+                _selectedSource = source;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanDownload));
+                OnPropertyChanged(nameof(IsExperimental));
+            }
+        }
+    }
+
+    public bool IsExperimental => _selectedSource == DownloadSource.Experimental;
+
     private bool _isLoading = true;
     public bool IsLoading
     {
         get => _isLoading;
         set { _isLoading = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanDownload)); }
+    }
+
+    private bool _isLoadingExperimental;
+    public bool IsLoadingExperimental
+    {
+        get => _isLoadingExperimental;
+        set { _isLoadingExperimental = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanDownload)); }
     }
 
     private bool _isDownloading;
@@ -79,6 +123,13 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
     {
         get => _statusMessage;
         set { _statusMessage = value; OnPropertyChanged(); }
+    }
+
+    private string _experimentalStatusMessage = "";
+    public string ExperimentalStatusMessage
+    {
+        get => _experimentalStatusMessage;
+        set { _experimentalStatusMessage = value; OnPropertyChanged(); }
     }
 
     private string _manualTagInput = "";
@@ -103,12 +154,19 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
         set { _isReleaseNotFound = value; OnPropertyChanged(); }
     }
 
-    public bool CanDownload => SelectedAsset != null && !IsDownloading && !IsLoading && !IsReleaseNotFound;
+    public bool CanDownload
+    {
+        get
+        {
+            if (IsDownloading || IsLoading) return false;
+            if (_selectedSource == DownloadSource.Official)
+                return SelectedAsset != null && !IsReleaseNotFound;
+            return SelectedExperimentalAsset != null && !IsLoadingExperimental;
+        }
+    }
+
     public bool ShowProgress => IsDownloading;
 
-    /// <summary>
-    /// Tag of the release that was actually downloaded (null if not downloaded).
-    /// </summary>
     public string? DownloadedReleaseTag { get; private set; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -123,9 +181,19 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
     private async Task LoadReleasesAsync(string? preselectedTag = null)
     {
         IsLoading = true;
+        IsLoadingExperimental = true;
         StatusMessage = LocalizedStrings.GetString("LoadingReleases");
+        ExperimentalStatusMessage = LocalizedStrings.GetString("LoadingExperimental");
         IsReleaseNotFound = false;
 
+        var officialTask = LoadOfficialReleasesAsync(preselectedTag);
+        var experimentalTask = LoadExperimentalBuildsAsync();
+
+        await Task.WhenAll(officialTask, experimentalTask);
+    }
+
+    private async Task LoadOfficialReleasesAsync(string? preselectedTag)
+    {
         try
         {
             var releases = await _downloadService.GetLatestReleasesAsync(10);
@@ -161,6 +229,37 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
         }
     }
 
+    private async Task LoadExperimentalBuildsAsync()
+    {
+        try
+        {
+            var builds = await _downloadService.GetExperimentalBuildsAsync();
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                ExperimentalAssets.Clear();
+                foreach (var b in builds)
+                    ExperimentalAssets.Add(b);
+
+                if (ExperimentalAssets.Count > 0)
+                    SelectedExperimentalAsset = ExperimentalAssets[0];
+
+                IsLoadingExperimental = false;
+                ExperimentalStatusMessage = ExperimentalAssets.Count == 0
+                    ? LocalizedStrings.GetString("NoExperimentalBuilds")
+                    : "";
+            });
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                IsLoadingExperimental = false;
+                ExperimentalStatusMessage = string.Format(LocalizedStrings.GetString("DownloadFailed"), ex.Message);
+            });
+        }
+    }
+
     private void PopulateAssets()
     {
         AvailableAssets.Clear();
@@ -187,7 +286,6 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
         if (string.IsNullOrWhiteSpace(_manualTagInput))
             return;
 
-        // Text came from selecting an item in the ComboBox, not from user typing
         if (_selectedRelease != null && _manualTagInput == _selectedRelease.ToString())
             return;
 
@@ -228,7 +326,24 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
 
     public async Task DownloadAsync()
     {
-        if (SelectedAsset == null || IsDownloading) return;
+        var asset = _selectedSource == DownloadSource.Official ? SelectedAsset : SelectedExperimentalAsset;
+        if (asset == null || IsDownloading) return;
+
+        if (_selectedSource == DownloadSource.Experimental)
+        {
+            var warning = LocalizedStrings.GetString("ExperimentalConfirmDownload");
+            var result = await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                var dlgResult = await MessageBox.ShowAsync(
+                    MainWindow.Instance!,
+                    warning,
+                    LocalizedStrings.GetString("ConfirmTitle"),
+                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxIcon.Warning);
+                return dlgResult;
+            });
+            if (result != MessageBoxResult.Yes) return;
+        }
 
         IsDownloading = true;
         StatusMessage = LocalizedStrings.GetString("Downloading");
@@ -249,8 +364,12 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
 
         try
         {
-            await _downloadService.DownloadAndExtractAsync(SelectedAsset, progress, _cts.Token,
-                _downloadService.FindMatchingCudaDllAsset(SelectedAsset, _selectedRelease?.Assets));
+            var allAssets = _selectedSource == DownloadSource.Official
+                ? _selectedRelease?.Assets
+                : new System.Collections.Generic.List<ReleaseAsset>(ExperimentalAssets);
+
+            await _downloadService.DownloadAndExtractAsync(asset, progress, _cts.Token,
+                _downloadService.FindMatchingCudaDllAsset(asset, allAssets));
 
             if (!_downloadService.IsInPath(_downloadService.InstallDirectory))
             {
@@ -272,13 +391,15 @@ public class DownloadDialogViewModel : INotifyPropertyChanged
                 }
             }
 
-            DownloadedReleaseTag = _selectedRelease?.Tag;
+            if (_selectedSource == DownloadSource.Official)
+                DownloadedReleaseTag = _selectedRelease?.Tag;
+            else
+                DownloadedReleaseTag = "exp:" + asset.Name;
 
             Dispatcher.UIThread.Post(() =>
             {
                 StatusMessage = LocalizedStrings.GetString("DownloadComplete");
                 IsDownloading = false;
-                // Auto-close after successful download
                 _ = Task.Delay(800).ContinueWith(_ =>
                     Dispatcher.UIThread.Post(() => RequestClose?.Invoke()));
             });

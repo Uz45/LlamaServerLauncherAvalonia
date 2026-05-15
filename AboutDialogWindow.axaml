@@ -3,11 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:res="clr-namespace:LlamaServerLauncher.Resources;assembly=LlamaServerLauncher"
         Title="{Binding AboutTitle}"
-        Width="420" Height="320"
+         Width="480" Height="280"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         SizeToContent="Height">
-    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" HorizontalAlignment="Center">
+    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" HorizontalAlignment="Center">
         <TextBlock Grid.Row="0" Text="Llama Server Launcher" FontSize="20" FontWeight="Bold"
                    HorizontalAlignment="Center" Margin="0,0,0,10"/>
 
@@ -33,9 +33,16 @@
                     Padding="0" VerticalAlignment="Center"/>
         </StackPanel>
 
-        <Border Grid.Row="4" Background="{DynamicResource SeparatorBrush}" Height="1" Margin="0,0,0,15" HorizontalAlignment="Stretch"/>
+        <Border Grid.Row="4" Background="{DynamicResource SeparatorBrush}" Height="1" Margin="0,0,0,10" HorizontalAlignment="Stretch"/>
 
-        <Button Grid.Row="5" Content="{Binding Localized.OK}" Click="CloseClick"
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+            <TextBlock Text="{Binding Localized.ThanksMethelina}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <Button Content="Methelina" Click="OpenMethelinaProfile" Cursor="Hand"
+                    Foreground="{DynamicResource LinkForegroundBrush}" Background="Transparent" BorderThickness="0"
+                    Padding="0" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <Button Grid.Row="6" Content="{Binding Localized.OK}" Click="CloseClick"
                 HorizontalAlignment="Center" Padding="30,8" MinWidth="80"/>
     </Grid>
 </Window>

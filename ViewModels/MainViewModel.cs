@@ -61,7 +61,7 @@ public class MainViewModel : INotifyPropertyChanged
         new LanguageOption { Code = "ru", Name = "Русский" }
     };
 
-    public List<string> CacheTypes { get; } = new() { "", "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1" };
+    public List<string> CacheTypes { get; } = new() { "", "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1", "turbo2", "turbo3", "turbo4" };
 
     public record FontSizeOption(string Label, string Value, double Size);
     public List<FontSizeOption> FontSizeOptions { get; } = new()

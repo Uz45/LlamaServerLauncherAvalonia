@@ -34,3 +34,4 @@ Thumbs.db
 # Test results
 TestResults/
 coverage/
+*.csproj.lscache

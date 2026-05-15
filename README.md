@@ -191,6 +191,10 @@ LlamaServerLauncher/
 └── App.axaml                 # App entry point, tray icon, culture handling
 ```
 
+## Acknowledgments
+
+Спасибо за вклад в проект и моральную поддержку — [Methelina](https://github.com/Methelina). Спасибо за предоставленные экспериментальные сборки llama.cpp-turboquant.
+
 ## License
 
 MIT License - See LICENSE file for details.

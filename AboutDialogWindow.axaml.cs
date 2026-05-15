@@ -26,6 +26,11 @@ public partial class AboutDialogWindow : Window
         OpenUrl("https://github.com/pytraveler/LlamaServerLauncherAvalonia");
     }
 
+    private void OpenMethelinaProfile(object? sender, RoutedEventArgs e)
+    {
+        OpenUrl("https://github.com/Methelina");
+    }
+
     private static void OpenUrl(string url)
     {
         try

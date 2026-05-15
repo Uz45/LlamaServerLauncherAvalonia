@@ -782,4 +782,25 @@
   <data name="AppUpdateConfirm" xml:space="preserve">
     <value>Доступна новая версия приложения. Скачать и перезапустить?</value>
   </data>
+  <data name="TabOfficial" xml:space="preserve">
+    <value>Официальный llama.cpp</value>
+  </data>
+  <data name="TabExperimental" xml:space="preserve">
+    <value>Экспериментальный (TurboQuant)</value>
+  </data>
+  <data name="ExperimentalWarning" xml:space="preserve">
+    <value>Это не официальный релиз ggml/llama.cpp и служит только для ознакомления.</value>
+  </data>
+  <data name="ExperimentalConfirmDownload" xml:space="preserve">
+    <value>Загрузить экспериментальную сборку? Это не официальный релиз ggml/llama.cpp и служит только для ознакомления.</value>
+  </data>
+  <data name="NoExperimentalBuilds" xml:space="preserve">
+    <value>Экспериментальные сборки недоступны</value>
+  </data>
+  <data name="LoadingExperimental" xml:space="preserve">
+    <value>Загрузка экспериментальных сборок...</value>
+  </data>
+  <data name="ThanksMethelina" xml:space="preserve">
+    <value>Спасибо за вклад в проект и моральную поддержку:</value>
+  </data>
 </root>

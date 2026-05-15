@@ -416,14 +416,14 @@
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <StackPanel Orientation="Horizontal" Margin="0,0,30,0">
                                             <TextBlock Text="{Binding Localized.CacheTypeK}" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip.Tip="{Binding Localized.TooltipCacheTypeK}"/>
-                                            <ComboBox ItemsSource="{Binding CacheTypes}" SelectedItem="{Binding CacheTypeK}" Width="80"/>
+                                            <ComboBox ItemsSource="{Binding CacheTypes}" SelectedItem="{Binding CacheTypeK}" Width="100"/>
                                             <Button Click="ClearCacheTypeKClick" Margin="3,0,0,0" ToolTip.Tip="Clear">
                                                 <Image Source="{StaticResource BackspaceIcon}" Width="16" Height="16"/>
                                             </Button>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding Localized.CacheTypeV}" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip.Tip="{Binding Localized.TooltipCacheTypeV}"/>
-                                            <ComboBox ItemsSource="{Binding CacheTypes}" SelectedItem="{Binding CacheTypeV}" Width="80"/>
+                                            <ComboBox ItemsSource="{Binding CacheTypes}" SelectedItem="{Binding CacheTypeV}" Width="100"/>
                                             <Button Click="ClearCacheTypeVClick" Margin="3,0,0,0" ToolTip.Tip="Clear">
                                                 <Image Source="{StaticResource BackspaceIcon}" Width="16" Height="16"/>
                                             </Button>
