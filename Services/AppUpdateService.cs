@@ -218,6 +218,26 @@ public class AppUpdateService
         else
             return null;
 
+        var archSuffix = RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X64 => "x64",
+            Architecture.Arm64 => "arm64",
+            _ => null
+        };
+
+        // Try exact match with architecture first
+        if (archSuffix != null)
+        {
+            var exactPrefix = osPrefix + archSuffix;
+            foreach (var asset in assetsEl.EnumerateArray())
+            {
+                var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                if (name.StartsWith(exactPrefix, StringComparison.OrdinalIgnoreCase))
+                    return asset;
+            }
+        }
+
+        // Fallback: return first asset matching OS prefix without architecture
         foreach (var asset in assetsEl.EnumerateArray())
         {
             var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
