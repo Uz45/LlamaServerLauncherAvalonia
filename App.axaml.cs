@@ -210,27 +210,37 @@ public partial class App : Application
     
     public void BuildTrayMenu(ViewModels.ICommand closeCmd)
     {
-        _trayMenu = new NativeMenu();
-        _trayMenu.Add(new NativeMenuItem(LocalizedStrings.Instance.Show) { Command = new CommandAdapter(new RelayCommand(_ =>
+        // Reuse the same NativeMenu instance to avoid "The menu being updated does not match"
+        // crash on macOS (Avalonia Native), where the native proxy tracks the NativeMenu reference.
+        // Creating a new NativeMenu and assigning it to TrayIcon.Menu breaks the native proxy link.
+        if (_trayMenu == null)
+        {
+            _trayMenu = new NativeMenu();
+        }
+        else
+        {
+            _trayMenu.Items.Clear();
+        }
+
+        _trayMenu.Items.Add(new NativeMenuItem(LocalizedStrings.Instance.Show) { Command = new CommandAdapter(new RelayCommand(_ =>
         {
             _mainWindow!.Show();
             _mainWindow.WindowState = WindowState.Normal;
             _mainWindow.Activate();
         })) });
-        _trayMenu.Add(new NativeMenuItemSeparator());
-        
+        _trayMenu.Items.Add(new NativeMenuItemSeparator());
+
         // Server control commands - include profile name in menu items
-        _trayMenu.Add(new NativeMenuItem(GetTrayMenuItemText(LocalizedStrings.Instance.StartServer)) { Command = new CommandAdapter(_viewModel!.StartServerCommand) });
-        _trayMenu.Add(new NativeMenuItem(GetTrayMenuItemText(LocalizedStrings.Instance.StopServer)) { Command = new CommandAdapter(_viewModel!.StopServerCommand) });
-        _trayMenu.Add(new NativeMenuItem(LocalizedStrings.Instance.UnloadModel) { Command = new CommandAdapter(_viewModel!.UnloadModelCommand) });
-        _trayMenu.Add(new NativeMenuItem(LocalizedStrings.Instance.OpenInBrowser) { Command = new CommandAdapter(_viewModel!.OpenInBrowserCommand) });
-        
-        _trayMenu.Add(new NativeMenuItemSeparator());
-        _trayMenu.Add(new NativeMenuItem(LocalizedStrings.Instance.Close) { Command = new CommandAdapter(closeCmd) });
-        
-        if (_trayIcon != null)
+        _trayMenu.Items.Add(new NativeMenuItem(GetTrayMenuItemText(LocalizedStrings.Instance.StartServer)) { Command = new CommandAdapter(_viewModel!.StartServerCommand) });
+        _trayMenu.Items.Add(new NativeMenuItem(GetTrayMenuItemText(LocalizedStrings.Instance.StopServer)) { Command = new CommandAdapter(_viewModel!.StopServerCommand) });
+        _trayMenu.Items.Add(new NativeMenuItem(LocalizedStrings.Instance.UnloadModel) { Command = new CommandAdapter(_viewModel!.UnloadModelCommand) });
+        _trayMenu.Items.Add(new NativeMenuItem(LocalizedStrings.Instance.OpenInBrowser) { Command = new CommandAdapter(_viewModel!.OpenInBrowserCommand) });
+
+        _trayMenu.Items.Add(new NativeMenuItemSeparator());
+        _trayMenu.Items.Add(new NativeMenuItem(LocalizedStrings.Instance.Close) { Command = new CommandAdapter(closeCmd) });
+
+        if (_trayIcon != null && _trayIcon.Menu != _trayMenu)
         {
-            _trayIcon.Menu = null;
             _trayIcon.Menu = _trayMenu;
         }
     }

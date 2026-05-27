@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -2299,7 +2300,7 @@ public class MainViewModel : INotifyPropertyChanged
     {
         var result = await WindowsFileDialogs.OpenFileDialogAsync(
             "Select llama-server executable",
-            new[] { ("All files", "*") },
+            new[] { ("All files", new[] { "*" }) },
             false);
         if (result != null && result.Length > 0)
         {
@@ -2315,9 +2316,17 @@ public class MainViewModel : INotifyPropertyChanged
 
     private async Task BrowseModelAsync()
     {
+        var modelPatterns = new List<string> { "*.gguf" };
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            modelPatterns.Add("*.safetensors");
+            modelPatterns.Add("*.bin");
+            modelPatterns.Add("*.mlx");
+        }
+
         var result = await WindowsFileDialogs.OpenFileDialogAsync(
             "Select Model File",
-            new[] { ("Model files", "*.gguf"), ("All files", "*.*") },
+            new[] { ("Model files", modelPatterns.ToArray()), ("All files", new[] { "*.*" }) },
             false);
         if (result != null && result.Length > 0)
         {
@@ -2339,7 +2348,7 @@ public class MainViewModel : INotifyPropertyChanged
         var result = await WindowsFileDialogs.SaveFileDialogAsync(
             "Select Log File",
             "log",
-            new[] { ("Log files", "*.log"), ("All files", "*.*") });
+            new[] { ("Log files", new[] { "*.log" }), ("All files", new[] { "*.*" }) });
         if (!string.IsNullOrEmpty(result))
         {
             LogFilePath = result;
@@ -2350,7 +2359,7 @@ public class MainViewModel : INotifyPropertyChanged
     {
         var result = await WindowsFileDialogs.OpenFileDialogAsync(
             "Select MMProj File",
-            new[] { ("GGUF files", "*.gguf"), ("All files", "*.*") },
+            new[] { ("GGUF files", new[] { "*.gguf" }), ("All files", new[] { "*.*" }) },
             false);
         if (result != null && result.Length > 0)
         {
@@ -2360,9 +2369,17 @@ public class MainViewModel : INotifyPropertyChanged
 
     private async Task BrowseDraftModelAsync()
     {
+        var modelPatterns = new List<string> { "*.gguf" };
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            modelPatterns.Add("*.safetensors");
+            modelPatterns.Add("*.bin");
+            modelPatterns.Add("*.mlx");
+        }
+
         var result = await WindowsFileDialogs.OpenFileDialogAsync(
             "Select Draft Model File",
-            new[] { ("Model files", "*.gguf"), ("All files", "*.*") },
+            new[] { ("Model files", modelPatterns.ToArray()), ("All files", new[] { "*.*" }) },
             false);
         if (result != null && result.Length > 0)
         {
@@ -3592,11 +3609,11 @@ public void RebuildCustomArgumentsFromToggles()
         var filePath = await WindowsFileDialogs.SaveFileDialogAsync(
             LocalizedStrings.Instance.ExportDialogTitle,
             "json",
-            new[] { 
-                ("JSON profile (*.json)", "*.json"), 
-                ("Windows batch (*.bat)", "*.bat"),
-                ("MacOS script (*.command)", "*.command"),
-                ("Linux script (*.sh)", "*.sh")
+            new[] {
+                ("JSON profile (*.json)", new[] { "*.json" }),
+                ("Windows batch (*.bat)", new[] { "*.bat" }),
+                ("MacOS script (*.command)", new[] { "*.command" }),
+                ("Linux script (*.sh)", new[] { "*.sh" })
             });
         
         if (!string.IsNullOrEmpty(filePath))
@@ -3635,7 +3652,7 @@ public void RebuildCustomArgumentsFromToggles()
     {
         var result = await WindowsFileDialogs.OpenFileDialogAsync(
             "Import Profile",
-            new[] { ("JSON files", "*.json") },
+            new[] { ("JSON files", new[] { "*.json" }) },
             false);
         if (result != null && result.Length > 0)
         {
@@ -3659,7 +3676,7 @@ public void RebuildCustomArgumentsFromToggles()
         var filePath = await WindowsFileDialogs.SaveFileDialogAsync(
             LocalizedStrings.Instance.ExportAllDialogTitle,
             "zip",
-            new[] { (LocalizedStrings.Instance.ExportAllFilter, "*.zip") });
+            new[] { (LocalizedStrings.Instance.ExportAllFilter, new[] { "*.zip" }) });
 
         if (!string.IsNullOrEmpty(filePath))
         {
@@ -3679,7 +3696,7 @@ public void RebuildCustomArgumentsFromToggles()
     {
         var result = await WindowsFileDialogs.OpenFileDialogAsync(
             LocalizedStrings.Instance.ImportAllDialogTitle,
-            new[] { ("Backup archive", "*.zip") });
+            new[] { ("Backup archive", new[] { "*.zip" }) });
 
         if (result != null && result.Length > 0)
         {
@@ -3769,7 +3786,7 @@ public void RebuildCustomArgumentsFromToggles()
         var filePath = await WindowsFileDialogs.SaveFileDialogAsync(
             "Export to BAT",
             "bat",
-            new[] { ("BAT files", "*.bat") });
+            new[] { ("BAT files", new[] { "*.bat" }) });
         if (!string.IsNullOrEmpty(filePath))
         {
             var config = GetCurrentConfig();
@@ -3810,7 +3827,7 @@ public void RebuildCustomArgumentsFromToggles()
         var filePath = await WindowsFileDialogs.SaveFileDialogAsync(
             Resources.LocalizedStrings.Instance.SaveLogDialogTitle,
             "log",
-            new[] { ("Log files (*.log)", "*.log"), ("Text files (*.txt)", "*.txt"), ("All files", "*") });
+            new[] { ("Log files (*.log)", new[] { "*.log" }), ("Text files (*.txt)", new[] { "*.txt" }), ("All files", new[] { "*" }) });
         if (!string.IsNullOrEmpty(filePath))
         {
             await System.IO.File.WriteAllTextAsync(filePath, text);

@@ -318,7 +318,7 @@
     <value>Закрыть</value>
   </data>
   <data name="TooltipModelPath" xml:space="preserve">
-    <value>Путь к файлу модели GGUF для загрузки (-m). Поддерживает перетаскивание.</value>
+    <value>Путь к файлу модели для загрузки (-m). Поддерживает перетаскивание.</value>
   </data>
   <data name="TooltipModelsDir" xml:space="preserve">
     <value>Каталог с моделями для маршрутизации нескольких моделей (--models-dir). Оставьте пустым для одной модели.</value>

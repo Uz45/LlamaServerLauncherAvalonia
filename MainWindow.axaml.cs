@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -786,7 +787,20 @@ public partial class MainWindow : Window
 
 #region Drag and Drop
 
-    private static readonly string[] SupportedExtensions = { ".json", ".bat", ".cmd", ".command", ".sh", ".exe", ".gguf" };
+    private static string[] SupportedExtensions
+    {
+        get
+        {
+            var extensions = new List<string> { ".json", ".bat", ".cmd", ".command", ".sh", ".exe", ".gguf" };
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                extensions.Add(".safetensors");
+                extensions.Add(".bin");
+                extensions.Add(".mlx");
+            }
+            return extensions.ToArray();
+        }
+    }
 
 private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
     {
@@ -847,9 +861,9 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             {
                 await HandleDroppedExeAsync(filePath);
             }
-            else if (ext == ".gguf")
+            else if (ext == ".gguf" || ext == ".safetensors" || ext == ".bin" || ext == ".mlx")
             {
-                HandleDroppedGguf(filePath);
+                HandleDroppedModel(filePath);
             }
         }
         catch (Exception ex)
@@ -948,7 +962,7 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
         }
     }
 
-    private void HandleDroppedGguf(string filePath)
+    private void HandleDroppedModel(string filePath)
     {
         if (_viewModel == null) return;
 

@@ -13,7 +13,7 @@ public static class WindowsFileDialogs
 
     private static Window? MainWindow => LlamaServerLauncher.MainWindow.Instance;
 
-    public static async Task<string[]?> OpenFileDialogAsync(string title, (string Name, string Ext)[]? filters = null, bool allowMultiple = false)
+    public static async Task<string[]?> OpenFileDialogAsync(string title, (string Name, string[] Patterns)[]? filters = null, bool allowMultiple = false)
     {
         if (MainWindow == null) return null;
 
@@ -27,8 +27,8 @@ public static class WindowsFileDialogs
 
         if (filters != null && filters.Length > 0)
         {
-            filePickerOptions.FileTypeFilter = filters.Select(f => 
-                new FilePickerFileType(f.Name) { Patterns = new[] { f.Ext } }
+            filePickerOptions.FileTypeFilter = filters.Select(f =>
+                new FilePickerFileType(f.Name) { Patterns = f.Patterns }
             ).ToList();
         }
 
@@ -45,7 +45,7 @@ public static class WindowsFileDialogs
         return paths;
     }
 
-    public static async Task<string?> SaveFileDialogAsync(string title, string defaultExtension = "", (string Name, string Ext)[]? filters = null)
+    public static async Task<string?> SaveFileDialogAsync(string title, string defaultExtension = "", (string Name, string[] Patterns)[]? filters = null)
     {
         if (MainWindow == null) return null;
 
@@ -64,8 +64,8 @@ public static class WindowsFileDialogs
 
         if (filters != null && filters.Length > 0)
         {
-            filePickerOptions.FileTypeChoices = filters.Select(f => 
-                new FilePickerFileType(f.Name) { Patterns = new[] { f.Ext } }
+            filePickerOptions.FileTypeChoices = filters.Select(f =>
+                new FilePickerFileType(f.Name) { Patterns = f.Patterns }
             ).ToList();
         }
 
@@ -95,12 +95,12 @@ public static class WindowsFileDialogs
     }
 
     // Sync versions - these are not well supported in Avalonia async model
-    public static string[]? OpenFileDialog(string title, (string Name, string Ext)[]? filters = null, bool allowMultiple = false)
+    public static string[]? OpenFileDialog(string title, (string Name, string[] Patterns)[]? filters = null, bool allowMultiple = false)
     {
         return null;
     }
 
-    public static string? SaveFileDialog(string title, string defaultExtension = "", (string Name, string Ext)[]? filters = null)
+    public static string? SaveFileDialog(string title, string defaultExtension = "", (string Name, string[] Patterns)[]? filters = null)
     {
         return null;
     }

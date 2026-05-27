@@ -318,7 +318,7 @@
     <value>Close</value>
   </data>
   <data name="TooltipModelPath" xml:space="preserve">
-    <value>Path to the GGUF model file to load (-m). Supports drag &amp; drop.</value>
+    <value>Path to the model file to load (-m). Supports drag &amp; drop.</value>
   </data>
   <data name="TooltipModelsDir" xml:space="preserve">
     <value>Directory with models for multi-model routing (--models-dir). Leave empty if using a single model.</value>
