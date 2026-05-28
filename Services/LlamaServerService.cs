@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,11 +20,45 @@ public class LlamaServerService : ILlamaServerService, IDisposable
     private bool _isBusy;
     private string? _dockerContainerName;
 
-    public bool IsRunning => _process != null && !_process.HasExited;
+    public bool IsRunning
+    {
+        get
+        {
+            if (_process == null)
+                return false;
+
+            try
+            {
+                return !_process.HasExited;
+            }
+            catch (InvalidOperationException)
+            {
+                // Process object exists but was never started (e.g. Start() threw)
+                return false;
+            }
+        }
+    }
+
     public bool IsSingleModelMode { get; private set; }
-    public bool IsBusy => _isBusy || (IsRunning && _process != null && !_process.HasExited);
+    public bool IsBusy => _isBusy || IsRunning;
     public bool WasStoppedIntentionally => _isStoppingIntentionally;
-    public int? ProcessId => _process?.Id;
+    public int? ProcessId
+    {
+        get
+        {
+            if (_process == null)
+                return null;
+
+            try
+            {
+                return _process.Id;
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+        }
+    }
     public string BaseUrl => _currentConfig != null
         ? $"http://{_currentConfig.Host}:{_currentConfig.Port}"
         : "http://127.0.0.1:8080";
@@ -34,6 +69,99 @@ public class LlamaServerService : ILlamaServerService, IDisposable
     public LlamaServerService(LogService logService)
     {
         _logService = logService;
+    }
+
+    private static string? ResolveExecutablePath(string executableName)
+    {
+        if (string.IsNullOrWhiteSpace(executableName))
+            return null;
+
+        // If it's already an absolute or relative path with directory separators, check directly
+        if (executableName.Contains(Path.DirectorySeparatorChar) || executableName.Contains(Path.AltDirectorySeparatorChar))
+        {
+            if (File.Exists(executableName) && IsExecutableFile(executableName))
+                return Path.GetFullPath(executableName);
+            return null;
+        }
+
+        var searchNames = new List<string> { executableName };
+
+        if (OperatingSystem.IsWindows())
+        {
+            var hasExtension = Path.HasExtension(executableName);
+            if (!hasExtension)
+            {
+                searchNames.Add(executableName + ".exe");
+                searchNames.Add(executableName + ".cmd");
+                searchNames.Add(executableName + ".bat");
+            }
+            else
+            {
+                var ext = Path.GetExtension(executableName).ToLowerInvariant();
+                if (ext != ".exe")
+                    searchNames.Add(Path.ChangeExtension(executableName, ".exe"));
+                if (ext != ".cmd")
+                    searchNames.Add(Path.ChangeExtension(executableName, ".cmd"));
+                if (ext != ".bat")
+                    searchNames.Add(Path.ChangeExtension(executableName, ".bat"));
+            }
+        }
+
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var pathDirs = new HashSet<string>(comparer);
+
+        void AddPaths(string? pathVar)
+        {
+            if (string.IsNullOrEmpty(pathVar)) return;
+            foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!string.IsNullOrWhiteSpace(dir))
+                    pathDirs.Add(dir.Trim());
+            }
+        }
+
+        // Current process PATH
+        AddPaths(Environment.GetEnvironmentVariable("PATH"));
+        // User PATH (may have been updated during this session)
+        try { AddPaths(Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User)); } catch { }
+        // Machine PATH
+        try { AddPaths(Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine)); } catch { }
+
+        foreach (var dir in pathDirs)
+        {
+            foreach (var name in searchNames)
+            {
+                var fullPath = Path.Combine(dir, name);
+                if (File.Exists(fullPath) && IsExecutableFile(fullPath))
+                    return fullPath;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether the given file path points to an executable file.
+    /// On Windows: any existing file is considered potentially executable (Process.Start validates further).
+    /// On Linux/macOS: checks for execute permission bits.
+    /// </summary>
+    private static bool IsExecutableFile(string filePath)
+    {
+        if (OperatingSystem.IsWindows())
+            return true;
+
+        try
+        {
+            var mode = File.GetUnixFileMode(filePath);
+            return (mode & UnixFileMode.UserExecute) != 0
+                || (mode & UnixFileMode.GroupExecute) != 0
+                || (mode & UnixFileMode.OtherExecute) != 0;
+        }
+        catch
+        {
+            // Fallback: if we can't check permissions, assume it's executable and let Process.Start fail later with a clearer error
+            return true;
+        }
     }
 
     public async Task StartAsync(ServerConfiguration config, HashSet<string>? supportedFlags = null, List<string>? validSpecTypeValues = null, List<string>? validCacheTypeValues = null)
@@ -55,6 +183,12 @@ public class LlamaServerService : ILlamaServerService, IDisposable
             throw new InvalidOperationException("Executable path is not set. Download llama.cpp or specify the path manually.");
         }
 
+        var resolvedExecutable = ResolveExecutablePath(config.ExecutablePath);
+        if (resolvedExecutable == null)
+        {
+            throw new FileNotFoundException($"Executable not found: '{config.ExecutablePath}'. Ensure the file exists in PATH or provide a full path.");
+        }
+
         if (string.IsNullOrEmpty(config.ModelPath) && string.IsNullOrEmpty(config.ModelsDir) && string.IsNullOrEmpty(config.HfRepo) && string.IsNullOrEmpty(config.HfFile))
         {
             throw new InvalidOperationException("Model path, models directory, or Hugging Face repo/file must be specified");
@@ -67,7 +201,7 @@ public class LlamaServerService : ILlamaServerService, IDisposable
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = config.ExecutablePath,
+            FileName = resolvedExecutable,
             Arguments = CommandLineBuilder.Build(config, supportedFlags, validSpecTypeValues, validCacheTypeValues),
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -77,7 +211,7 @@ public class LlamaServerService : ILlamaServerService, IDisposable
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        _logService.Info($"Starting server: {config.ExecutablePath} {startInfo.Arguments}");
+        _logService.Info($"Starting server: {resolvedExecutable} {startInfo.Arguments}");
 
         try
         {
@@ -97,6 +231,18 @@ public class LlamaServerService : ILlamaServerService, IDisposable
         catch (Exception ex)
         {
             _logService.Error($"Failed to start server: {ex.Message}");
+            if (_process != null)
+            {
+                try
+                {
+                    _process.OutputDataReceived -= OnOutputDataReceived;
+                    _process.ErrorDataReceived -= OnErrorDataReceived;
+                    _process.Exited -= OnProcessExited;
+                    _process.Dispose();
+                }
+                catch { }
+                _process = null;
+            }
             throw;
         }
         finally
@@ -180,6 +326,18 @@ public class LlamaServerService : ILlamaServerService, IDisposable
         catch (Exception ex)
         {
             _logService.Error($"Failed to start Docker server: {ex.Message}");
+            if (_process != null)
+            {
+                try
+                {
+                    _process.OutputDataReceived -= OnOutputDataReceived;
+                    _process.ErrorDataReceived -= OnErrorDataReceived;
+                    _process.Exited -= OnProcessExited;
+                    _process.Dispose();
+                }
+                catch { }
+                _process = null;
+            }
             throw;
         }
         finally
