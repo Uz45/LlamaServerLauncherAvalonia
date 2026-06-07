@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private bool _isAutoCompleting;
     private bool _suppressAutoComplete;
     private TextBox? _profileComboBoxTextBox;
+    private System.Threading.CancellationTokenSource? _autoStartCts;
 
     public static MainWindow? Instance { get; private set; }
     public IntPtr WindowHandle => _windowHandle;
@@ -109,6 +110,28 @@ public partial class MainWindow : Window
             // Apply auto-fit after initial height is set
             if (_viewModel.AutoFitHeight)
                 EnableAutoFitHeight();
+
+            // Auto-start scenario after the window is fully loaded
+            _autoStartCts = new System.Threading.CancellationTokenSource();
+            var token = _autoStartCts.Token;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(500, token);
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await _viewModel.RunAutoStartScenarioAsync();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Auto-start scenario failed: {ex.Message}");
+                }
+            }, token);
         }
     }
 
@@ -138,19 +161,19 @@ public partial class MainWindow : Window
             Dispatcher.UIThread.Post(() =>
             {
                 var mainGrid = this.FindControl<Grid>("MainGrid");
-                if (mainGrid == null || _viewModel == null || mainGrid.RowDefinitions.Count <= 5) return;
+                if (mainGrid == null || _viewModel == null || mainGrid.RowDefinitions.Count <= 6) return;
 
                 if (_viewModel.LogVisible)
                 {
                     var h = _viewModel.LogHeight > 0 ? _viewModel.LogHeight : 200;
-                    mainGrid.RowDefinitions[5].Height = new GridLength(h);
+                    mainGrid.RowDefinitions[6].Height = new GridLength(h);
                 }
                 else
                 {
-                    var currentHeight = mainGrid.RowDefinitions[5].Height;
+                    var currentHeight = mainGrid.RowDefinitions[6].Height;
                     if (currentHeight.IsAbsolute && currentHeight.Value > 0)
                         _viewModel.LogHeight = currentHeight.Value;
-                    mainGrid.RowDefinitions[5].Height = new GridLength(0);
+                    mainGrid.RowDefinitions[6].Height = new GridLength(0);
                 }
             });
         }
@@ -165,8 +188,8 @@ public partial class MainWindow : Window
         _viewModel.AutoFitHeightSavedHeight = Height;
 
         // Change TabControl row (row 3) from * to Auto so content drives height
-        if (mainGrid.RowDefinitions.Count > 3)
-            mainGrid.RowDefinitions[3].Height = GridLength.Auto;
+            if (mainGrid.RowDefinitions.Count > 4)
+                mainGrid.RowDefinitions[4].Height = GridLength.Auto;
 
         _originalMinHeight = MinHeight;
         MinHeight = 0;
@@ -184,8 +207,8 @@ public partial class MainWindow : Window
         MinHeight = _originalMinHeight;
         CanResize = true;
 
-        if (mainGrid != null && mainGrid.RowDefinitions.Count > 3)
-            mainGrid.RowDefinitions[3].Height = new GridLength(1, GridUnitType.Star);
+            if (mainGrid != null && mainGrid.RowDefinitions.Count > 4)
+                mainGrid.RowDefinitions[4].Height = new GridLength(1, GridUnitType.Star);
 
         // Restore height from LH
         if (_viewModel != null)
@@ -199,11 +222,11 @@ public partial class MainWindow : Window
         if (!_isAutoFitActive) return;
 
         var mainGrid = this.FindControl<Grid>("MainGrid");
-        if (mainGrid == null || mainGrid.RowDefinitions.Count <= 5) return;
+        if (mainGrid == null || mainGrid.RowDefinitions.Count <= 6) return;
 
         _isCustomLogDrag = true;
         _customLogDragStartY = e.GetPosition(this).Y;
-        _customLogDragStartHeight = mainGrid.RowDefinitions[5].Height.Value;
+        _customLogDragStartHeight = mainGrid.RowDefinitions[6].Height.Value;
         e.Handled = true;
         e.Pointer.Capture((IInputElement)sender!);
     }
@@ -213,12 +236,12 @@ public partial class MainWindow : Window
         if (!_isCustomLogDrag) return;
 
         var mainGrid = this.FindControl<Grid>("MainGrid");
-        if (mainGrid == null || mainGrid.RowDefinitions.Count <= 5) return;
+        if (mainGrid == null || mainGrid.RowDefinitions.Count <= 6) return;
 
         var currentY = e.GetPosition(this).Y;
         var delta = currentY - _customLogDragStartY;
         var newHeight = Math.Max(50, _customLogDragStartHeight + delta);
-        mainGrid.RowDefinitions[5].Height = new GridLength(newHeight);
+        mainGrid.RowDefinitions[6].Height = new GridLength(newHeight);
         e.Handled = true;
     }
 
@@ -254,11 +277,11 @@ public partial class MainWindow : Window
         }
 
         var mainGrid = this.FindControl<Grid>("MainGrid");
-        if (mainGrid != null && mainGrid.RowDefinitions.Count > 5)
+        if (mainGrid != null && mainGrid.RowDefinitions.Count > 6)
         {
             var logHeight = settings.LogHeight > 0 ? settings.LogHeight : 200;
-            mainGrid.RowDefinitions[5].Height = new GridLength(logHeight);
-            mainGrid.RowDefinitions[5].MinHeight = 50;
+            mainGrid.RowDefinitions[6].Height = new GridLength(logHeight);
+            mainGrid.RowDefinitions[6].MinHeight = 50;
         }
     }
 
@@ -267,9 +290,9 @@ public partial class MainWindow : Window
         if (_configService == null || _viewModel == null) return;
         
         var mainGrid = this.FindControl<Grid>("MainGrid");
-        if (mainGrid != null && mainGrid.RowDefinitions.Count > 5 && _viewModel.LogVisible)
+        if (mainGrid != null && mainGrid.RowDefinitions.Count > 6 && _viewModel.LogVisible)
         {
-            var logRow = mainGrid.RowDefinitions[5];
+            var logRow = mainGrid.RowDefinitions[6];
             if (logRow.Height.IsAbsolute && logRow.Height.Value > 0)
                 _viewModel.LogHeight = logRow.Height.Value;
         }
@@ -284,6 +307,7 @@ public partial class MainWindow : Window
         
         settings.WindowLeft = Position.X;
         settings.WindowTop = Position.Y;
+
         await _configService.SaveAppSettingsAsync(settings);
     }
 
@@ -473,6 +497,11 @@ public partial class MainWindow : Window
     private void RenameClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel?.RenameProfileCommand.Execute(null);
+    }
+
+    private void CloneClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.CloneProfileCommand.Execute(null);
     }
 
     private void ExportClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -818,6 +847,8 @@ public partial class MainWindow : Window
     private void UnloadModelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel?.DismissServerStartError();
+        if (_viewModel?.SelectedInstance?.IsSingleModelMode ?? true)
+            return;
         _viewModel?.UnloadModelCommand.Execute(null);
     }
 
@@ -832,11 +863,38 @@ public partial class MainWindow : Window
         _viewModel?.DismissServerStartError();
     }
 
+    private DateTime _lastInstanceClickTime = DateTime.MinValue;
+
     private async void InstanceButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (sender is SplitButton btn && btn.DataContext is ServerInstance instance)
         {
+            var now = DateTime.UtcNow;
+            // Double-click detected
+            if ((now - _lastInstanceClickTime).TotalMilliseconds < 400
+                && instance.IsRunning)
+            {
+                _lastInstanceClickTime = DateTime.MinValue;
+                // Only open browser if web UI is enabled
+                if (instance.Configuration.EnableWebUI != false)
+                {
+                    await instance.OpenInBrowserAsync();
+                }
+                return;
+            }
+            _lastInstanceClickTime = now;
             await _viewModel!.SelectInstanceAsync(instance);
+        }
+    }
+
+    private async void InstanceButtonPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(sender as Avalonia.Visual).Properties.IsRightButtonPressed
+            && sender is Avalonia.Input.InputElement control
+            && control.DataContext is ServerInstance instance)
+        {
+            await ConfirmAndStopInstanceAsync(this, instance, _viewModel);
+            e.Handled = true;
         }
     }
 
@@ -869,17 +927,6 @@ public partial class MainWindow : Window
             await ConfirmAndStopInstanceAsync(this, instance, _viewModel);
     }
 
-    private async void InstanceButtonPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(sender as Avalonia.Visual).Properties.IsRightButtonPressed
-            && sender is Avalonia.Input.InputElement control
-            && control.DataContext is ServerInstance instance)
-        {
-            await ConfirmAndStopInstanceAsync(this, instance, _viewModel);
-            e.Handled = true;
-        }
-    }
-
     private async void InstanceRestartClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (GetInstanceFromMenuItem(sender) is ServerInstance instance)
@@ -906,10 +953,110 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void InstanceUnloadClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void UnloadModelsFlyoutOpened(object? sender, EventArgs e)
     {
-        if (GetInstanceFromMenuItem(sender) is ServerInstance instance)
+        if (sender is not MenuFlyout flyout || _viewModel == null) return;
+
+        try
+        {
+            flyout.Items.Clear();
+
+            var instance = _viewModel.SelectedInstance;
+            if (instance == null || !instance.IsRunning)
+            {
+                flyout.Items.Add(new MenuItem { Header = _viewModel.Localized.NoLoadedModels, IsEnabled = false });
+                return;
+            }
+
+            if (instance.IsSingleModelMode)
+            {
+                flyout.Items.Add(new MenuItem { Header = _viewModel.Localized.NoLoadedModels, IsEnabled = false });
+                return;
+            }
+
+            var unloadAll = new MenuItem { Header = _viewModel.Localized.UnloadAllModels, Tag = instance };
+            unloadAll.Click += UnloadAllForInstanceClick;
+            flyout.Items.Add(unloadAll);
+            flyout.Items.Add(new Separator());
+
+            var models = await instance.GetLoadedModelsAsync();
+            if (models.Count == 0)
+            {
+                flyout.Items.Add(new MenuItem { Header = _viewModel.Localized.NoLoadedModels, IsEnabled = false });
+            }
+            else
+            {
+                foreach (var modelId in models)
+                {
+                    var item = new MenuItem { Header = modelId, Tag = instance };
+                    item.Click += UnloadSingleModelClick;
+                    flyout.Items.Add(item);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _viewModel.LogService.Error($"Error populating unload models flyout: {ex.Message}");
+        }
+    }
+
+    private async void InstanceUnloadSubmenuOpened(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is not MenuItem parent || parent.DataContext is not ServerInstance instance || _viewModel == null)
+            return;
+
+        try
+        {
+            if (instance.IsSingleModelMode)
+            {
+                parent.Items.Clear();
+                parent.Items.Add(new MenuItem { Header = _viewModel.Localized.NoLoadedModels, IsEnabled = false });
+                return;
+            }
+
+            await PopulateUnloadSubmenuAsync(parent, instance);
+        }
+        catch (Exception ex)
+        {
+            _viewModel.LogService.Error($"Error populating instance unload submenu: {ex.Message}");
+        }
+    }
+
+    private async Task PopulateUnloadSubmenuAsync(MenuItem parent, ServerInstance instance)
+    {
+        parent.Items.Clear();
+
+        var unloadAll = new MenuItem { Header = _viewModel!.Localized.UnloadAllModels, Tag = instance };
+        unloadAll.Click += UnloadAllForInstanceClick;
+        parent.Items.Add(unloadAll);
+        parent.Items.Add(new Separator());
+
+        var models = await instance.GetLoadedModelsAsync();
+        if (models.Count == 0)
+        {
+            parent.Items.Add(new MenuItem { Header = _viewModel.Localized.NoLoadedModels, IsEnabled = false });
+        }
+        else
+        {
+            foreach (var modelId in models)
+            {
+                var item = new MenuItem { Header = modelId, Tag = instance };
+                item.Click += UnloadSingleModelClick;
+                parent.Items.Add(item);
+            }
+        }
+    }
+
+    private async void UnloadAllForInstanceClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is MenuItem mi && mi.Tag is ServerInstance instance)
             await instance.UnloadModelAsync();
+    }
+
+    private async void UnloadSingleModelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is MenuItem mi && mi.Tag is ServerInstance instance && mi.Header is string modelId)
+            await instance.UnloadSingleModelAsync(modelId);
     }
 
     private async void InstanceOpenInBrowserClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -930,6 +1077,7 @@ public partial class MainWindow : Window
     {
         if (sender is Avalonia.Controls.Border border && border.DataContext is ToastItem toast)
         {
+            toast.OnClick?.Invoke();
             _viewModel?.Toasts.Dismiss(toast);
             e.Handled = true;
         }
@@ -996,6 +1144,36 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ScenariosEnabledClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+    }
+
+    private void RunScenarioClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.RunScenarioCommand.Execute(null);
+    }
+
+    private void EditScenarioClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.EditScenarioCommand.Execute(null);
+    }
+
+    private void CreateScenarioClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.CreateScenarioCommand.Execute(null);
+    }
+
+    private void DeleteScenarioClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.DeleteScenarioCommand.Execute(null);
+    }
+
+    private async void ScenarioAutoStartClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel == null) return;
+        await _viewModel.ToggleScenarioAutoStartAsync();
+    }
+
     private async Task OpenDownloadDialogAsync()
     {
         if (_viewModel == null) return;
@@ -1008,8 +1186,12 @@ public partial class MainWindow : Window
             _viewModel.CachedLlamaReleases,
             _viewModel.CachedLlamaReleasesTimestamp,
             null);
-        dialog.SetViewModel(vm);
+        dialog.SetViewModel(vm, _configService!);
         await dialog.ShowDialog(this);
+
+        await DialogPositionHelper.SaveCapturedGeometryAsync(dialog.CapturedGeometry, _configService!, "DownloadDialog");
+        if (dialog.CapturedGeometry != null && _viewModel != null)
+            _viewModel.DialogGeometryDict["DownloadDialog"] = dialog.CapturedGeometry;
 
         if (!vm.DownloadSucceeded)
             return;
@@ -1036,6 +1218,11 @@ public partial class MainWindow : Window
     private void ClearLogClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel?.ClearLogCommand.Execute(null);
+    }
+
+    private void RestartLogStreamClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.RestartLogStreamCommand.Execute(null);
     }
 
     private async void CopyLogClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -1277,18 +1464,18 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             return;
 
         var content = await File.ReadAllTextAsync(filePath);
-        var (exePath, args) = ExtractLlamaCommand(content);
+        var (exePath, tokens) = ExtractLlamaCommand(content);
 
-        if (string.IsNullOrWhiteSpace(args))
+        if (tokens.Count == 0)
         {
             _viewModel.LogService.Error($"[Import] No valid llama-server command with model argument (-m, --model, or --models-dir) found in batch file.");
             return;
         }
 
-        var config = ServerConfigurationExtensions.ParseFromCommandLine(args);
+        var config = ServerConfigurationExtensions.ParseFromTokens(tokens);
         if (config == null)
         {
-            _viewModel.LogService.Error($"[Import] Failed to parse command line arguments from: {args}");
+            _viewModel.LogService.Error($"[Import] Failed to parse command line arguments from batch file.");
             return;
         }
 
@@ -1311,18 +1498,18 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             return;
 
         var content = await File.ReadAllTextAsync(filePath);
-        var (exePath, args) = ExtractLlamaCommandFromShell(content);
+        var (exePath, tokens) = ExtractLlamaCommandFromShell(content);
 
-        if (string.IsNullOrWhiteSpace(args))
+        if (tokens.Count == 0)
         {
             _viewModel.LogService.Error($"[Import] No valid llama-server command with model argument (-m, --model, or --models-dir) found in shell script.");
             return;
         }
 
-        var config = ServerConfigurationExtensions.ParseFromCommandLine(args);
+        var config = ServerConfigurationExtensions.ParseFromTokens(tokens);
         if (config == null)
         {
-            _viewModel.LogService.Error($"[Import] Failed to parse command line arguments from: {args}");
+            _viewModel.LogService.Error($"[Import] Failed to parse command line arguments from shell script.");
             return;
         }
 
@@ -1339,7 +1526,7 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
         _viewModel.LogService.AppLog($"Profile imported from shell script: {filePath}");
     }
 
-    private (string? exePath, string args) ExtractLlamaCommand(string batContent)
+    private (string? exePath, List<string> tokens) ExtractLlamaCommand(string batContent)
     {
         var lines = batContent.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
         
@@ -1375,27 +1562,81 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             if (exeIndex < 0)
                 continue;
 
-            // Extract all text after llama-server
-            string afterExe;
-            var exeName = "llama-server.exe";
-            if (trimmedLine.IndexOf(exeName, exeIndex, StringComparison.OrdinalIgnoreCase) == exeIndex)
+            // Determine exe name end position (check for .exe)
+            int exeNameEnd = exeIndex + "llama-server".Length;
+            if (exeNameEnd + 4 <= trimmedLine.Length &&
+                trimmedLine.Substring(exeNameEnd, 4).Equals(".exe", StringComparison.OrdinalIgnoreCase))
             {
-                afterExe = trimmedLine.Substring(exeIndex + exeName.Length);
+                exeNameEnd += 4;
             }
-            else
+
+            // Check if exe is inside quotes (e.g. "C:\llama-server.exe")
+            // Scan backwards from exeIndex past path chars to find an opening quote
+            string? exePath = null;
+            int argsStart;
+            int openingQuote = -1;
+
+            for (int qi = exeIndex - 1; qi >= 0; qi--)
             {
-                // Search for .exe extension after llama-server
-                var extSearchStart = exeIndex + "llama-server".Length;
-                var exeExtIndex = trimmedLine.IndexOf(".exe", extSearchStart, StringComparison.OrdinalIgnoreCase);
-                if (exeExtIndex >= 0)
+                char qc = trimmedLine[qi];
+                if (qc == '"' || qc == '\'')
                 {
-                    afterExe = trimmedLine.Substring(exeExtIndex + 4);
+                    openingQuote = qi;
+                    break;
+                }
+                else if (qc == ' ' || qc == '\t')
+                {
+                    break; // whitespace boundary — no opening quote
+                }
+                // else: path char (e.g. C, :, \), keep scanning
+            }
+
+            if (openingQuote >= 0)
+            {
+                char quoteChar = trimmedLine[openingQuote];
+                // Find closing quote after exe name
+                int closeQuote = trimmedLine.IndexOf(quoteChar, exeNameEnd);
+                if (closeQuote >= 0)
+                {
+                    exePath = trimmedLine.Substring(openingQuote + 1, closeQuote - openingQuote - 1);
+                    argsStart = closeQuote + 1;
                 }
                 else
                 {
-                    afterExe = trimmedLine.Substring(exeIndex + "llama-server".Length);
+                    argsStart = exeNameEnd;
                 }
             }
+            else
+            {
+                // Not quoted — extract path prefix from before exe name
+                if (exeIndex > 0)
+                {
+                    var beforeExe = trimmedLine.Substring(0, exeIndex);
+                    var pathStart = 0;
+                    while (pathStart < beforeExe.Length && (beforeExe[pathStart] == ' ' || beforeExe[pathStart] == '\t'))
+                        pathStart++;
+
+                    if (pathStart < beforeExe.Length)
+                    {
+                        var potentialPath = beforeExe.Substring(pathStart);
+                        potentialPath = potentialPath.TrimEnd(' ', '\t');
+                        if (potentialPath.EndsWith("\""))
+                            potentialPath = potentialPath.TrimEnd('"');
+
+                        if (!string.IsNullOrWhiteSpace(potentialPath))
+                        {
+                            exePath = potentialPath;
+                        }
+                    }
+                }
+                argsStart = exeNameEnd;
+            }
+
+            string afterExe = argsStart < trimmedLine.Length ? trimmedLine.Substring(argsStart) : "";
+
+            // Strip leading quote if the executable name was quoted (e.g. "llama-server")
+            if (afterExe.Length > 0 && (afterExe[0] == '"' || afterExe[0] == '\''))
+                afterExe = afterExe.Substring(1);
 
             // Use CommandLineParser.ParseArguments to properly split arguments
             var parsedArgs = CommandLineParser.ParseArguments(afterExe);
@@ -1425,36 +1666,6 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             if (!hasModelArg)
                 continue;
 
-            // Extract executable path - look BEFORE the "llama-server" in the ORIGINAL line
-            string? exePath = null;
-            if (exeIndex > 0)
-            {
-                // Get everything before llama-server
-                var beforeExe = trimmedLine.Substring(0, exeIndex);
-                
-                // Find where the path actually starts (skip leading spaces and quotes)
-                var pathStart = 0;
-                while (pathStart < beforeExe.Length && (beforeExe[pathStart] == ' ' || beforeExe[pathStart] == '\t'))
-                    pathStart++;
-                
-                if (pathStart < beforeExe.Length)
-                {
-                    var potentialPath = beforeExe.Substring(pathStart);
-                    
-                    // Clean up trailing whitespace and quotes
-                    potentialPath = potentialPath.TrimEnd(' ', '\t');
-                    
-                    // Also clean up trailing quote if present (for cases like ".\llama-server.exe")
-                    if (potentialPath.EndsWith("\""))
-                        potentialPath = potentialPath.TrimEnd('"');
-                    
-                    if (!string.IsNullOrWhiteSpace(potentialPath))
-                    {
-                        exePath = potentialPath;
-                    }
-                }
-            }
-
             // Remove trailing pause/exit commands
             while (parsedArgs.Count > 0 && 
                    (parsedArgs[^1].Equals("pause", StringComparison.OrdinalIgnoreCase) ||
@@ -1463,31 +1674,16 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
                 parsedArgs.RemoveAt(parsedArgs.Count - 1);
             }
             
-            // Reconstruct args string (unescape paths)
-            var argsList = new List<string>();
-            for (int i = 0; i < parsedArgs.Count; i++)
+            if (parsedArgs.Count > 0)
             {
-                var arg = parsedArgs[i];
-                // Unescape path separators for arguments that typically contain paths
-                if (arg.Contains('\\') || arg.Contains("//"))
-                {
-                    arg = CommandLineBuilder.UnescapePath(arg);
-                }
-                argsList.Add(arg);
-            }
-            
-            var argsStr = string.Join(" ", argsList);
-            
-            if (!string.IsNullOrWhiteSpace(argsStr))
-            {
-                return (exePath, argsStr);
+                return (exePath, parsedArgs);
             }
         }
 
-        return (null, string.Empty);
+        return (null, new List<string>());
     }
 
-    private (string? exePath, string args) ExtractLlamaCommandFromShell(string shellContent)
+    private (string? exePath, List<string> tokens) ExtractLlamaCommandFromShell(string shellContent)
     {
         var lines = shellContent.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
         
@@ -1511,12 +1707,8 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             if (string.IsNullOrWhiteSpace(trimmedLine))
                 continue;
             
-            // Skip shell comments (#)
+            // Skip shell comments (#) and shebang lines (#!)
             if (trimmedLine.StartsWith("#"))
-                continue;
-
-            // Skip shebang lines
-            if (trimmedLine.StartsWith("#!"))
                 continue;
 
             // Line must contain "llama-server" (exe name or path)
@@ -1524,27 +1716,81 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             if (exeIndex < 0)
                 continue;
 
-            // Extract all text after llama-server
-            string afterExe;
-            var exeName = "llama-server.exe";
-            if (trimmedLine.IndexOf(exeName, exeIndex, StringComparison.OrdinalIgnoreCase) == exeIndex)
+            // Determine exe name end position (check for .exe)
+            int exeNameEnd = exeIndex + "llama-server".Length;
+            if (exeNameEnd + 4 <= trimmedLine.Length &&
+                trimmedLine.Substring(exeNameEnd, 4).Equals(".exe", StringComparison.OrdinalIgnoreCase))
             {
-                afterExe = trimmedLine.Substring(exeIndex + exeName.Length);
+                exeNameEnd += 4;
             }
-            else
+
+            // Check if exe is inside quotes (e.g. "C:\llama-server.exe")
+            // Scan backwards from exeIndex past path chars to find an opening quote
+            string? exePath = null;
+            int argsStart;
+            int openingQuote = -1;
+
+            for (int qi = exeIndex - 1; qi >= 0; qi--)
             {
-                // Search for .exe extension after llama-server (for cross-platform compatibility)
-                var extSearchStart = exeIndex + "llama-server".Length;
-                var exeExtIndex = trimmedLine.IndexOf(".exe", extSearchStart, StringComparison.OrdinalIgnoreCase);
-                if (exeExtIndex >= 0)
+                char qc = trimmedLine[qi];
+                if (qc == '"' || qc == '\'')
                 {
-                    afterExe = trimmedLine.Substring(exeExtIndex + 4);
+                    openingQuote = qi;
+                    break;
+                }
+                else if (qc == ' ' || qc == '\t')
+                {
+                    break; // whitespace boundary — no opening quote
+                }
+                // else: path char (e.g. C, :, \), keep scanning
+            }
+
+            if (openingQuote >= 0)
+            {
+                char quoteChar = trimmedLine[openingQuote];
+                // Find closing quote after exe name
+                int closeQuote = trimmedLine.IndexOf(quoteChar, exeNameEnd);
+                if (closeQuote >= 0)
+                {
+                    exePath = trimmedLine.Substring(openingQuote + 1, closeQuote - openingQuote - 1);
+                    argsStart = closeQuote + 1;
                 }
                 else
                 {
-                    afterExe = trimmedLine.Substring(exeIndex + "llama-server".Length);
+                    argsStart = exeNameEnd;
                 }
             }
+            else
+            {
+                // Not quoted — extract path prefix from before exe name
+                if (exeIndex > 0)
+                {
+                    var beforeExe = trimmedLine.Substring(0, exeIndex);
+                    var pathStart = 0;
+                    while (pathStart < beforeExe.Length && (beforeExe[pathStart] == ' ' || beforeExe[pathStart] == '\t'))
+                        pathStart++;
+
+                    if (pathStart < beforeExe.Length)
+                    {
+                        var potentialPath = beforeExe.Substring(pathStart);
+                        potentialPath = potentialPath.TrimEnd(' ', '\t');
+                        if (potentialPath.EndsWith("\""))
+                            potentialPath = potentialPath.TrimEnd('"');
+
+                        if (!string.IsNullOrWhiteSpace(potentialPath))
+                        {
+                            exePath = potentialPath;
+                        }
+                    }
+                }
+                argsStart = exeNameEnd;
+            }
+
+            string afterExe = argsStart < trimmedLine.Length ? trimmedLine.Substring(argsStart) : "";
+
+            // Strip leading quote if the executable name was quoted (e.g. "llama-server")
+            if (afterExe.Length > 0 && (afterExe[0] == '"' || afterExe[0] == '\''))
+                afterExe = afterExe.Substring(1);
 
             // Use CommandLineParser.ParseArguments to properly split arguments
             var parsedArgs = CommandLineParser.ParseArguments(afterExe);
@@ -1574,36 +1820,6 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             if (!hasModelArg)
                 continue;
 
-            // Extract executable path - look BEFORE the "llama-server" in the ORIGINAL line
-            string? exePath = null;
-            if (exeIndex > 0)
-            {
-                // Get everything before llama-server
-                var beforeExe = trimmedLine.Substring(0, exeIndex);
-                
-                // Find where the path actually starts (skip leading spaces and quotes)
-                var pathStart = 0;
-                while (pathStart < beforeExe.Length && (beforeExe[pathStart] == ' ' || beforeExe[pathStart] == '\t'))
-                    pathStart++;
-                
-                if (pathStart < beforeExe.Length)
-                {
-                    var potentialPath = beforeExe.Substring(pathStart);
-                    
-                    // Clean up trailing whitespace and quotes
-                    potentialPath = potentialPath.TrimEnd(' ', '\t');
-                    
-                    // Also clean up trailing quote if present
-                    if (potentialPath.EndsWith("\""))
-                        potentialPath = potentialPath.TrimEnd('"');
-                    
-                    if (!string.IsNullOrWhiteSpace(potentialPath))
-                    {
-                        exePath = potentialPath;
-                    }
-                }
-            }
-
             // Remove trailing semicolons and comments (shell style)
             while (parsedArgs.Count > 0)
             {
@@ -1618,28 +1834,13 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
                 }
             }
             
-            // Reconstruct args string (unescape paths)
-            var argsList = new List<string>();
-            for (int i = 0; i < parsedArgs.Count; i++)
+            if (parsedArgs.Count > 0)
             {
-                var arg = parsedArgs[i];
-                // Unescape path separators for arguments that typically contain paths
-                if (arg.Contains('\\') || arg.Contains("//"))
-                {
-                    arg = CommandLineBuilder.UnescapePath(arg);
-                }
-                argsList.Add(arg);
-            }
-            
-            var argsStr = string.Join(" ", argsList);
-            
-            if (!string.IsNullOrWhiteSpace(argsStr))
-            {
-                return (exePath, argsStr);
+                return (exePath, parsedArgs);
             }
         }
 
-        return (null, string.Empty);
+        return (null, new List<string>());
     }
 
     private static bool ContainsModelArgument(string line)
@@ -1726,6 +1927,7 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
 
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
+        _autoStartCts?.Cancel();
         System.Diagnostics.Debug.WriteLine($"OnClosing: IsClosing={_isClosing}, IsClosingFromTray={IsClosingFromTray}, IsServerRunning={_viewModel?.IsServerRunning}");
         
         if (_isClosing)
@@ -1759,7 +1961,7 @@ private void Window_DragEnter(object? sender, Avalonia.Input.DragEventArgs e)
             return;
         }
 
-        if (_viewModel != null && _viewModel.IsServerRunning)
+        if (_viewModel != null && (_viewModel.IsServerRunning || _viewModel.HasAnyRunningInstances))
         {
             // Cancel closing first - we will close manually after dialog
             e.Cancel = true;

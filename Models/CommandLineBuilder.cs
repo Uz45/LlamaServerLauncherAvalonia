@@ -375,11 +375,38 @@ public static class CommandLineBuilder
 
     private static string QuoteIfNeeded(string value)
     {
-        if (value.Contains(' ') || value.Contains('\t') || value.Contains('"') || value.Contains('\''))
+        if (!value.Contains(' ') && !value.Contains('\t') && !value.Contains('"') && !value.Contains('\''))
         {
-            return $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
+            return value;
         }
-        return value;
+        return QuoteValue(value);
+    }
+
+    public static string QuoteValue(string value)
+    {
+        var sb = new StringBuilder();
+        sb.Append('"');
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            if (c == '\\' && i + 1 < value.Length && (value[i + 1] == '"' || value[i + 1] == '\\'))
+            {
+                // Already an escape sequence (\\" or \\\\) — preserve as-is
+                sb.Append(c);
+                sb.Append(value[i + 1]);
+                i++;
+            }
+            else if (c == '"')
+            {
+                sb.Append("\\\"");
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        sb.Append('"');
+        return sb.ToString();
     }
 
     private static string? StripQuotes(string? value)
@@ -430,13 +457,13 @@ public static class CommandLineBuilder
         for (int i = 0; i < parsed.Count; i++)
         {
             string arg = parsed[i];
-            if (!arg.StartsWith("-"))
+            if (!CommandLineParser.IsFlag(arg))
                 continue;
 
             if (disabledCustomArgs.Contains(arg))
             {
                 // Skip disabled flag and its value if present
-                if (i + 1 < parsed.Count && !parsed[i + 1].StartsWith("-"))
+                if (i + 1 < parsed.Count && !CommandLineParser.IsFlag(parsed[i + 1]))
                     i++;
                 continue;
             }
@@ -453,7 +480,7 @@ public static class CommandLineBuilder
             if (alreadyInArgs)
                 continue;
 
-            if (i + 1 < parsed.Count && !parsed[i + 1].StartsWith("-"))
+            if (i + 1 < parsed.Count && !CommandLineParser.IsFlag(parsed[i + 1]))
             {
                 args.Add($"{arg} {QuoteIfNeeded(parsed[i + 1])}");
                 i++;
@@ -470,7 +497,8 @@ public static class CommandLineBuilder
         if (config.RunInDocker)
             return BuildDockerCommand(config, supportedFlags, validSpecTypeValues, validCacheTypeValues);
         var args = Build(config, supportedFlags, validSpecTypeValues, validCacheTypeValues);
-        return $"\"{config.ExecutablePath}\" {args}";
+        var exePart = string.IsNullOrWhiteSpace(config.ExecutablePath) ? "llama-server" : config.ExecutablePath;
+        return $"\"{exePart}\" {args}";
     }
 
     public static string BuildDockerCommand(ServerConfiguration config, HashSet<string>? supportedFlags = null, List<string>? validSpecTypeValues = null, List<string>? validCacheTypeValues = null)

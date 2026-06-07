@@ -8,12 +8,15 @@ public class ToastItem
 {
     public string Message { get; }
     public bool IsError { get; }
+    public bool IsClickable => OnClick != null;
     public Guid Id { get; } = Guid.NewGuid();
+    public Action? OnClick { get; }
 
-    public ToastItem(string message, bool isError = false)
+    public ToastItem(string message, bool isError = false, Action? onClick = null)
     {
         Message = message;
         IsError = isError;
+        OnClick = onClick;
     }
 }
 
@@ -21,9 +24,9 @@ public class ToastService
 {
     public ObservableCollection<ToastItem> Toasts { get; } = new();
 
-    public void Show(string message, int durationMs = 0)
+    public void Show(string message, int durationMs = 0, Action? onClick = null)
     {
-        var toast = new ToastItem(message);
+        var toast = new ToastItem(message, onClick: onClick);
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             Toasts.Add(toast);
@@ -41,9 +44,9 @@ public class ToastService
         }
     }
 
-    public void ShowError(string message, int durationMs = 5000)
+    public void ShowError(string message, int durationMs = 5000, Action? onClick = null)
     {
-        var toast = new ToastItem(message, isError: true);
+        var toast = new ToastItem(message, isError: true, onClick: onClick);
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             Toasts.Add(toast);

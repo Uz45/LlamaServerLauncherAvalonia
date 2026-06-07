@@ -177,6 +177,20 @@ public class LlamaCppDownloadService
                 ExtractTarGzWithFlatten(tempFile, targetDirectory);
             }
 
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                try
+                {
+                    var exePath = GetLlamaServerPath(targetDirectory);
+                    if (exePath != null && File.Exists(exePath))
+                    {
+                        var mode = File.GetUnixFileMode(exePath);
+                        File.SetUnixFileMode(exePath, mode | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+                    }
+                }
+                catch { }
+            }
+
             if (tempDllFile != null && File.Exists(tempDllFile))
             {
                 ExtractDllsFromZip(tempDllFile, targetDirectory);

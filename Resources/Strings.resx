@@ -71,6 +71,12 @@
   <data name="UnloadModel" xml:space="preserve">
     <value>Unload Models</value>
   </data>
+  <data name="UnloadAllModels" xml:space="preserve">
+    <value>Unload All</value>
+  </data>
+  <data name="NoLoadedModels" xml:space="preserve">
+    <value>No loaded models</value>
+  </data>
   <data name="AutoRestartOnCrash" xml:space="preserve">
     <value>Auto-restart on crash</value>
   </data>
@@ -471,7 +477,7 @@
     <value>Font size</value>
   </data>
   <data name="AutoFitHeight" xml:space="preserve">
-    <value>Auto-fit height</value>
+    <value>Auto-fit main window height</value>
   </data>
   <data name="ShowTabPanel" xml:space="preserve">
     <value>Show settings</value>
@@ -1023,7 +1029,7 @@
     <value>Model '{0}' is set together with Hugging Face args. Both -m and --hf-repo will be passed to llama-server.</value>
   </data>
   <data name="UpdateCheckIntervals" xml:space="preserve">
-    <value>Update Check Intervals</value>
+    <value>Update Check</value>
   </data>
   <data name="AppUpdateCheckInterval" xml:space="preserve">
     <value>App (min):</value>
@@ -1060,5 +1066,161 @@
   </data>
   <data name="ServerStartFailedToast" xml:space="preserve">
     <value>Server '{0}' failed to start. Check the log for details.</value>
+  </data>
+  <data name="ToastSavedExecutableNotFound" xml:space="preserve">
+    <value>Saved executable path '{0}' not found. Click here to switch to default.</value>
+  </data>
+  <data name="ToastClickToApply" xml:space="preserve">
+    <value>Click to apply</value>
+  </data>
+  <data name="LogStreaming" xml:space="preserve">
+    <value>Log Streaming</value>
+  </data>
+  <data name="LogStreamingEnabled" xml:space="preserve">
+    <value>Enable remote log streaming</value>
+  </data>
+  <data name="LogStreamingPort" xml:space="preserve">
+    <value>Port:</value>
+  </data>
+  <data name="LogStreamingToken" xml:space="preserve">
+    <value>Token:</value>
+  </data>
+  <data name="LogStreamingTokenHint" xml:space="preserve">
+    <value>Leave empty to disable authentication</value>
+  </data>
+  <data name="LogStreamingRestart" xml:space="preserve">
+    <value>Restart</value>
+  </data>
+  <data name="LogStreamingRunning" xml:space="preserve">
+    <value>Running on port {0}</value>
+  </data>
+  <data name="LogStreamingStopped" xml:space="preserve">
+    <value>Stopped</value>
+  </data>
+  <data name="LogStreamingClients" xml:space="preserve">
+    <value>client(s) connected</value>
+  </data>
+  <data name="TooltipLogStreamingEnabled" xml:space="preserve">
+    <value>Enable WebSocket server to stream the log to remote browsers</value>
+  </data>
+  <data name="TooltipLogStreamingPort" xml:space="preserve">
+    <value>TCP port for the log streaming server. Default: 5872. Click Restart to apply.</value>
+  </data>
+  <data name="TooltipLogStreamingToken" xml:space="preserve">
+    <value>Access token for remote clients. Clients must provide this token to connect. Leave empty for open access.</value>
+  </data>
+  <data name="TooltipLogStreamingTokenHint" xml:space="preserve">
+    <value>Leave empty to disable authentication (open access from local network)</value>
+  </data>
+  <data name="TooltipLogStreamingRestart" xml:space="preserve">
+    <value>Restart the log stream server with current settings</value>
+  </data>
+  <data name="ScenariosEnabled" xml:space="preserve">
+    <value>Enable scenarios</value>
+  </data>
+  <data name="Scenario" xml:space="preserve">
+    <value>Scenario:</value>
+  </data>
+  <data name="RunScenario" xml:space="preserve">
+    <value>Run</value>
+  </data>
+  <data name="EditScenario" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="CreateScenario" xml:space="preserve">
+    <value>Create scenario</value>
+  </data>
+  <data name="DeleteScenario" xml:space="preserve">
+    <value>Delete scenario</value>
+  </data>
+  <data name="AutoStartScenario" xml:space="preserve">
+    <value>Auto-start scenario</value>
+  </data>
+  <data name="ScenarioName" xml:space="preserve">
+    <value>Scenario name:</value>
+  </data>
+  <data name="ScenarioInterval" xml:space="preserve">
+    <value>Interval between launches (sec):</value>
+  </data>
+  <data name="ScenarioProfiles" xml:space="preserve">
+    <value>Profiles to launch:</value>
+  </data>
+  <data name="ScenarioAutoStart" xml:space="preserve">
+    <value>Auto-start on app launch</value>
+  </data>
+  <data name="ConfirmDeleteScenario" xml:space="preserve">
+    <value>Delete scenario '{0}'?</value>
+  </data>
+  <data name="ScenarioNoProfiles" xml:space="preserve">
+    <value>Select at least one profile</value>
+  </data>
+  <data name="ScenarioNameRequired" xml:space="preserve">
+    <value>Enter a scenario name</value>
+  </data>
+  <data name="ScenarioDialogTitleCreate" xml:space="preserve">
+    <value>Create Scenario</value>
+  </data>
+  <data name="ScenarioDialogTitleEdit" xml:space="preserve">
+    <value>Edit Scenario</value>
+  </data>
+  <data name="ScenarioRunning" xml:space="preserve">
+    <value>Running scenario '{0}'...</value>
+  </data>
+  <data name="ScenarioCompleted" xml:space="preserve">
+    <value>Scenario '{0}' completed: {1} servers launched</value>
+  </data>
+  <data name="ScenarioAutoStarted" xml:space="preserve">
+    <value>Auto-starting scenario '{0}'</value>
+  </data>
+  <data name="ScenarioProfileNotFound" xml:space="preserve">
+    <value>Profile '{0}' not found, skipping</value>
+  </data>
+  <data name="TooltipScenarioSplitButton" xml:space="preserve">
+    <value>Edit or manage scenarios</value>
+  </data>
+  <data name="ScenarioAvailableProfiles" xml:space="preserve">
+    <value>Available:</value>
+  </data>
+  <data name="ScenarioSelectedProfiles" xml:space="preserve">
+    <value>Selected:</value>
+  </data>
+  <data name="ScenarioNameExists" xml:space="preserve">
+    <value>A scenario with this name already exists</value>
+  </data>
+  <data name="AutoStartWithSystem" xml:space="preserve">
+    <value>Start with system</value>
+  </data>
+  <data name="TooltipAutoStartWithSystem" xml:space="preserve">
+    <value>Automatically launch the application when you log in</value>
+  </data>
+  <data name="DataStorage" xml:space="preserve">
+    <value>Data Storage</value>
+  </data>
+  <data name="Clone" xml:space="preserve">
+    <value>Clone</value>
+  </data>
+  <data name="CloneProfileTitle" xml:space="preserve">
+    <value>Clone Profile: {0}</value>
+  </data>
+  <data name="CloneProfileNameLabel" xml:space="preserve">
+    <value>New profile name:</value>
+  </data>
+  <data name="CloneProfileNameExists" xml:space="preserve">
+    <value>A profile with this name already exists</value>
+  </data>
+  <data name="CloneProfileNameEmpty" xml:space="preserve">
+    <value>Profile name cannot be empty</value>
+  </data>
+  <data name="CloneProfileHost" xml:space="preserve">
+    <value>Host:</value>
+  </data>
+  <data name="CloneProfilePort" xml:space="preserve">
+    <value>Port:</value>
+  </data>
+  <data name="CloneProfileContextSize" xml:space="preserve">
+    <value>Context size:</value>
+  </data>
+  <data name="CloneToScenario" xml:space="preserve">
+    <value>Clone &gt;</value>
   </data>
 </root>

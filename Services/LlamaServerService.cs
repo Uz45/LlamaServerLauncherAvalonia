@@ -65,7 +65,7 @@ public class LlamaServerService : ILlamaServerService, IDisposable
         }
     }
     public string BaseUrl => _currentConfig != null
-        ? $"http://{_currentConfig.Host}:{_currentConfig.Port}"
+        ? $"http://{(_currentConfig.Host is "0.0.0.0" or "::" ? "127.0.0.1" : _currentConfig.Host)}:{_currentConfig.Port}"
         : "http://127.0.0.1:8080";
 
     public event EventHandler<string>? OutputReceived;
@@ -432,12 +432,14 @@ public class LlamaServerService : ILlamaServerService, IDisposable
         }
     }
 
-    public async Task UnloadModelAsync()
+    public async Task<List<string>> GetLoadedModelsAsync()
     {
+        var loadedModels = new List<string>();
+
         if (!IsRunning)
         {
-            _logService.Warning("Cannot unload model: server is not running");
-            return;
+            _logService.Warning("Cannot get loaded models: server is not running");
+            return loadedModels;
         }
 
         try
@@ -448,13 +450,11 @@ public class LlamaServerService : ILlamaServerService, IDisposable
             if (!modelsResponse.IsSuccessStatusCode)
             {
                 _logService.Warning($"Failed to get models list: {modelsResponse.StatusCode}");
-                return;
+                return loadedModels;
             }
 
             var json = await modelsResponse.Content.ReadAsStringAsync();
             var modelsData = System.Text.Json.JsonDocument.Parse(json);
-
-            var loadedModels = new List<string>();
 
             if (modelsData.RootElement.TryGetProperty("data", out var dataArray))
             {
@@ -473,35 +473,73 @@ public class LlamaServerService : ILlamaServerService, IDisposable
                     }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Error getting loaded models: {ex.Message}");
+        }
 
-            if (loadedModels.Count == 0)
+        return loadedModels;
+    }
+
+    public async Task UnloadSingleModelAsync(string modelId)
+    {
+        if (!IsRunning)
+        {
+            _logService.Warning("Cannot unload model: server is not running");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(modelId))
+        {
+            return;
+        }
+
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+
+            var unloadContent = new StringContent(
+                $"{{\"model\":\"{modelId}\"}}",
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await client.PostAsync($"{BaseUrl}/models/unload", unloadContent);
+            if (response.IsSuccessStatusCode)
             {
-                _logService.Info("No loaded models found to unload");
-                return;
+                _logService.Info($"Model '{modelId}' unloaded successfully");
             }
-
-            foreach (var modelId in loadedModels)
+            else
             {
-                var unloadContent = new StringContent(
-                    $"{{\"model\":\"{modelId}\"}}",
-                    Encoding.UTF8,
-                    "application/json");
-
-                var response = await client.PostAsync($"{BaseUrl}/models/unload", unloadContent);
-                if (response.IsSuccessStatusCode)
-                {
-                    _logService.Info($"Model '{modelId}' unloaded successfully");
-                }
-                else
-                {
-                    var errorBody = await response.Content.ReadAsStringAsync();
-                    _logService.Warning($"Failed to unload model '{modelId}': {response.StatusCode} - {errorBody}");
-                }
+                var errorBody = await response.Content.ReadAsStringAsync();
+                _logService.Warning($"Failed to unload model '{modelId}': {response.StatusCode} - {errorBody}");
             }
         }
         catch (Exception ex)
         {
-            _logService.Error($"Error unloading model: {ex.Message}");
+            _logService.Error($"Error unloading model '{modelId}': {ex.Message}");
+        }
+    }
+
+    public async Task UnloadModelAsync()
+    {
+        if (!IsRunning)
+        {
+            _logService.Warning("Cannot unload model: server is not running");
+            return;
+        }
+
+        var loadedModels = await GetLoadedModelsAsync();
+
+        if (loadedModels.Count == 0)
+        {
+            _logService.Info("No loaded models found to unload");
+            return;
+        }
+
+        foreach (var modelId in loadedModels)
+        {
+            await UnloadSingleModelAsync(modelId);
         }
     }
 

@@ -71,6 +71,12 @@
   <data name="UnloadModel" xml:space="preserve">
     <value>Выгрузить модели</value>
   </data>
+  <data name="UnloadAllModels" xml:space="preserve">
+    <value>Выгрузить все</value>
+  </data>
+  <data name="NoLoadedModels" xml:space="preserve">
+    <value>Нет загруженных моделей</value>
+  </data>
   <data name="AutoRestartOnCrash" xml:space="preserve">
     <value>Автоперезапуск при сбое</value>
   </data>
@@ -471,7 +477,7 @@
     <value>Размер шрифта</value>
   </data>
   <data name="AutoFitHeight" xml:space="preserve">
-    <value>Авторегулировка высоты</value>
+    <value>Авторегулировка высоты окна программы</value>
   </data>
   <data name="ShowTabPanel" xml:space="preserve">
     <value>Показать настройки</value>
@@ -1023,7 +1029,7 @@
     <value>Указана модель '{0}' вместе с аргументами Hugging Face. Оба аргумента (-m и --hf-repo) будут переданы llama-server.</value>
   </data>
   <data name="UpdateCheckIntervals" xml:space="preserve">
-    <value>Интервалы проверки обновлений</value>
+    <value>Обновления</value>
   </data>
   <data name="AppUpdateCheckInterval" xml:space="preserve">
     <value>Программа (мин):</value>
@@ -1060,5 +1066,161 @@
   </data>
   <data name="ServerStartFailedToast" xml:space="preserve">
     <value>Сервер '{0}' не удалось запустить. Подробности в логе.</value>
+  </data>
+  <data name="ToastSavedExecutableNotFound" xml:space="preserve">
+    <value>Сохранённый путь к исполняемому файлу '{0}' не найден. Нажмите, чтобы переключиться на стандартный.</value>
+  </data>
+  <data name="ToastClickToApply" xml:space="preserve">
+    <value>Нажмите, чтобы применить</value>
+  </data>
+  <data name="LogStreaming" xml:space="preserve">
+    <value>Стриминг логов</value>
+  </data>
+  <data name="LogStreamingEnabled" xml:space="preserve">
+    <value>Включить удалённый стриминг логов</value>
+  </data>
+  <data name="LogStreamingPort" xml:space="preserve">
+    <value>Порт:</value>
+  </data>
+  <data name="LogStreamingToken" xml:space="preserve">
+    <value>Токен:</value>
+  </data>
+  <data name="LogStreamingTokenHint" xml:space="preserve">
+    <value>Оставьте пустым для отключения авторизации</value>
+  </data>
+  <data name="LogStreamingRestart" xml:space="preserve">
+    <value>Перезапустить</value>
+  </data>
+  <data name="LogStreamingRunning" xml:space="preserve">
+    <value>Запущен на порту {0}</value>
+  </data>
+  <data name="LogStreamingStopped" xml:space="preserve">
+    <value>Остановлен</value>
+  </data>
+  <data name="LogStreamingClients" xml:space="preserve">
+    <value>клиент(ов) подключено</value>
+  </data>
+  <data name="TooltipLogStreamingEnabled" xml:space="preserve">
+    <value>Запустить WebSocket-сервер для трансляции лога в удалённые браузеры</value>
+  </data>
+  <data name="TooltipLogStreamingPort" xml:space="preserve">
+    <value>TCP-порт сервера стриминга логов. По умолчанию: 5872. Нажмите «Перезапустить» для применения.</value>
+  </data>
+  <data name="TooltipLogStreamingToken" xml:space="preserve">
+    <value>Токен доступа для удалённых клиентов. Клиенты должны указать этот токен для подключения. Оставьте пустым для открытого доступа.</value>
+  </data>
+  <data name="TooltipLogStreamingTokenHint" xml:space="preserve">
+    <value>Оставьте пустым для отключения авторизации (открытый доступ из локальной сети)</value>
+  </data>
+  <data name="TooltipLogStreamingRestart" xml:space="preserve">
+    <value>Перезапустить сервер стриминга логов с текущими настройками</value>
+  </data>
+  <data name="ScenariosEnabled" xml:space="preserve">
+    <value>Включить сценарии</value>
+  </data>
+  <data name="Scenario" xml:space="preserve">
+    <value>Сценарий:</value>
+  </data>
+  <data name="RunScenario" xml:space="preserve">
+    <value>Запустить</value>
+  </data>
+  <data name="EditScenario" xml:space="preserve">
+    <value>Правка</value>
+  </data>
+  <data name="CreateScenario" xml:space="preserve">
+    <value>Создать сценарий</value>
+  </data>
+  <data name="DeleteScenario" xml:space="preserve">
+    <value>Удалить сценарий</value>
+  </data>
+  <data name="AutoStartScenario" xml:space="preserve">
+    <value>Автозапуск сценария</value>
+  </data>
+  <data name="ScenarioName" xml:space="preserve">
+    <value>Имя сценария:</value>
+  </data>
+  <data name="ScenarioInterval" xml:space="preserve">
+    <value>Интервал между запусками (сек):</value>
+  </data>
+  <data name="ScenarioProfiles" xml:space="preserve">
+    <value>Профили для запуска:</value>
+  </data>
+  <data name="ScenarioAutoStart" xml:space="preserve">
+    <value>Автозапуск при старте</value>
+  </data>
+  <data name="ConfirmDeleteScenario" xml:space="preserve">
+    <value>Удалить сценарий '{0}'?</value>
+  </data>
+  <data name="ScenarioNoProfiles" xml:space="preserve">
+    <value>Выберите хотя бы один профиль</value>
+  </data>
+  <data name="ScenarioNameRequired" xml:space="preserve">
+    <value>Введите имя сценария</value>
+  </data>
+  <data name="ScenarioDialogTitleCreate" xml:space="preserve">
+    <value>Создание сценария</value>
+  </data>
+  <data name="ScenarioDialogTitleEdit" xml:space="preserve">
+    <value>Редактирование сценария</value>
+  </data>
+  <data name="ScenarioRunning" xml:space="preserve">
+    <value>Выполнение сценария '{0}'...</value>
+  </data>
+  <data name="ScenarioCompleted" xml:space="preserve">
+    <value>Сценарий '{0}' завершён: {1} серверов запущено</value>
+  </data>
+  <data name="ScenarioAutoStarted" xml:space="preserve">
+    <value>Автозапуск сценария '{0}'</value>
+  </data>
+  <data name="ScenarioProfileNotFound" xml:space="preserve">
+    <value>Профиль '{0}' не найден, пропуск</value>
+  </data>
+  <data name="TooltipScenarioSplitButton" xml:space="preserve">
+    <value>Редактирование или управление сценариями</value>
+  </data>
+  <data name="ScenarioAvailableProfiles" xml:space="preserve">
+    <value>Доступные:</value>
+  </data>
+  <data name="ScenarioSelectedProfiles" xml:space="preserve">
+    <value>Выбранные:</value>
+  </data>
+  <data name="ScenarioNameExists" xml:space="preserve">
+    <value>Сценарий с таким именем уже существует</value>
+  </data>
+  <data name="AutoStartWithSystem" xml:space="preserve">
+    <value>Запускать вместе с системой</value>
+  </data>
+  <data name="TooltipAutoStartWithSystem" xml:space="preserve">
+    <value>Автоматически запускать приложение при входе в систему</value>
+  </data>
+  <data name="DataStorage" xml:space="preserve">
+    <value>Хранение данных</value>
+  </data>
+  <data name="Clone" xml:space="preserve">
+    <value>Клонировать</value>
+  </data>
+  <data name="CloneProfileTitle" xml:space="preserve">
+    <value>Клонировать профиль: {0}</value>
+  </data>
+  <data name="CloneProfileNameLabel" xml:space="preserve">
+    <value>Имя нового профиля:</value>
+  </data>
+  <data name="CloneProfileNameExists" xml:space="preserve">
+    <value>Профиль с таким именем уже существует</value>
+  </data>
+  <data name="CloneProfileNameEmpty" xml:space="preserve">
+    <value>Имя профиля не может быть пустым</value>
+  </data>
+  <data name="CloneProfileHost" xml:space="preserve">
+    <value>Хост:</value>
+  </data>
+  <data name="CloneProfilePort" xml:space="preserve">
+    <value>Порт:</value>
+  </data>
+  <data name="CloneProfileContextSize" xml:space="preserve">
+    <value>Размер контекста:</value>
+  </data>
+  <data name="CloneToScenario" xml:space="preserve">
+    <value>Клонировать &gt;</value>
   </data>
 </root>

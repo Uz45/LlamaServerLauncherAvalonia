@@ -12,6 +12,7 @@ namespace LlamaServerLauncher.Services;
 public class ConfigurationService
 {
     private readonly string _profilesPath;
+    private readonly string _scenariosPath;
     private readonly string _appSettingsPath;
     private readonly LogService _logService;
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -28,8 +29,10 @@ public class ConfigurationService
             "LlamaServerLauncherAvalonia"
         );
         _profilesPath = Path.Combine(basePath, "profiles");
+        _scenariosPath = Path.Combine(basePath, "scenarios");
         _appSettingsPath = Path.Combine(basePath, "app.json");
         Directory.CreateDirectory(_profilesPath);
+        Directory.CreateDirectory(_scenariosPath);
     }
 
     public async Task SaveAppSettingsAsync(AppSettings settings)
@@ -190,6 +193,8 @@ public class ConfigurationService
                 File.Delete(filePath);
                 _logService.Info($"Profile '{name}' deleted");
             }
+
+            await RemoveProfileFromScenariosAsync(name);
         }
         catch (Exception ex)
         {
@@ -230,6 +235,8 @@ public class ConfigurationService
                 await File.WriteAllTextAsync(newFilePath, newJson);
                 File.Delete(oldFilePath);
                 _logService.Info($"Profile renamed from '{oldName}' to '{newName}'");
+
+                await RenameProfileInScenariosAsync(oldName, newName);
             }
         }
         catch (Exception ex)
@@ -450,5 +457,139 @@ public class ConfigurationService
     {
         var invalidChars = Path.GetInvalidFileNameChars();
         return string.Join("_", name.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    public async Task<List<ScenarioInfo>> GetAllScenariosAsync()
+    {
+        var scenarios = new List<ScenarioInfo>();
+
+        try
+        {
+            var files = Directory.GetFiles(_scenariosPath, "*.json");
+            foreach (var file in files)
+            {
+                try
+                {
+                    var json = await File.ReadAllTextAsync(file);
+                    var scenario = JsonSerializer.Deserialize<ScenarioInfo>(json);
+                    if (scenario != null)
+                        scenarios.Add(scenario);
+                }
+                catch
+                {
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to get scenarios: {ex.Message}");
+        }
+
+        return scenarios.OrderBy(s => s.Name).ToList();
+    }
+
+    public async Task SaveScenarioAsync(ScenarioInfo scenario)
+    {
+        try
+        {
+            var filePath = GetScenarioPath(scenario.Name);
+            var json = JsonSerializer.Serialize(scenario, JsonOptions);
+            await File.WriteAllTextAsync(filePath, json);
+            _logService.Info($"Scenario '{scenario.Name}' saved successfully");
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to save scenario '{scenario.Name}': {ex.Message}");
+            throw;
+        }
+    }
+
+    public async Task<ScenarioInfo?> LoadScenarioAsync(string name)
+    {
+        try
+        {
+            var filePath = GetScenarioPath(name);
+            if (!File.Exists(filePath))
+            {
+                _logService.Warning($"Scenario '{name}' not found");
+                return null;
+            }
+
+            var json = await File.ReadAllTextAsync(filePath);
+            var scenario = JsonSerializer.Deserialize<ScenarioInfo>(json);
+            _logService.Info($"Scenario '{name}' loaded successfully");
+            return scenario;
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to load scenario '{name}': {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task DeleteScenarioAsync(string name)
+    {
+        try
+        {
+            var filePath = GetScenarioPath(name);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+                _logService.Info($"Scenario '{name}' deleted");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to delete scenario '{name}': {ex.Message}");
+            throw;
+        }
+    }
+
+    private async Task RemoveProfileFromScenariosAsync(string profileName)
+    {
+        try
+        {
+            var scenarios = await GetAllScenariosAsync();
+            foreach (var scenario in scenarios)
+            {
+                if (scenario.ProfileNames.Remove(profileName))
+                {
+                    await SaveScenarioAsync(scenario);
+                    _logService.Info($"Removed profile '{profileName}' from scenario '{scenario.Name}'");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to remove profile '{profileName}' from scenarios: {ex.Message}");
+        }
+    }
+
+    private async Task RenameProfileInScenariosAsync(string oldName, string newName)
+    {
+        try
+        {
+            var scenarios = await GetAllScenariosAsync();
+            foreach (var scenario in scenarios)
+            {
+                var idx = scenario.ProfileNames.IndexOf(oldName);
+                if (idx >= 0)
+                {
+                    scenario.ProfileNames[idx] = newName;
+                    await SaveScenarioAsync(scenario);
+                    _logService.Info($"Renamed profile '{oldName}' to '{newName}' in scenario '{scenario.Name}'");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to rename profile '{oldName}' in scenarios: {ex.Message}");
+        }
+    }
+
+    private string GetScenarioPath(string name)
+    {
+        var safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+        return Path.Combine(_scenariosPath, $"{safeName}.json");
     }
 }

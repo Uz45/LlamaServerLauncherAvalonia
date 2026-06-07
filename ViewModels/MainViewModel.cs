@@ -28,11 +28,16 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _isInitializing = true;
     private readonly LlamaServerService _serverService;
     private ConfigurationService _configService;
+
+    public ConfigurationService ConfigService => _configService;
+    public Dictionary<string, DialogGeometry> DialogGeometryDict { get; } = new();
     private readonly LogService _logService;
     private readonly LlamaCppDownloadService _downloadService;
     private readonly DockerCliService _dockerService;
     private readonly AppUpdateService _appUpdateService = new();
+    private readonly AutoStartService _autoStartService;
     private readonly DataPathResolver _dataPathResolver;
+    private readonly LogStreamService _logStreamService;
     private ServerConfiguration? _loadedProfileConfig;
     private string _loadedProfileName = string.Empty;
     private string _llamaCppInstalledTag = "";
@@ -49,8 +54,15 @@ public class MainViewModel : INotifyPropertyChanged
     private DateTime _cachedLlamaReleasesTimestamp;
     private CancellationTokenSource? _periodicCheckCts;
 
+    private bool _scenariosEnabled;
+    private string _selectedScenario = "";
+    private bool _selectedScenarioAutoStart;
+    private bool _isScenarioRunning;
+
     public ObservableCollection<ServerInstance> RunningInstances { get; } = new();
     private ServerInstance? _selectedInstance;
+
+    public ObservableCollection<string> Scenarios { get; } = new();
 
     public ServerInstance? SelectedInstance
     {
@@ -443,6 +455,7 @@ public class MainViewModel : INotifyPropertyChanged
     private List<string> _validSpecTypeValues = new(); // only values from help, for command line validation
     private bool _suppressSpecTypeChange; // prevents ComboBox from resetting SpecType during ItemsSource rebuild
     private bool _autoRestart;
+    private bool _autoStartWithSystem;
     private bool _confirmStopServer = true;
     private bool _autoScroll = true;
     private bool _logEnabled = true;
@@ -464,6 +477,131 @@ public class MainViewModel : INotifyPropertyChanged
     private CancellationTokenSource? _errorAnimationCts;
     private readonly List<string> _pendingLogs = new();
     private bool _logFlushScheduled;
+
+    private bool _logStreamEnabled;
+    private int _logStreamPort = 5872;
+    private string _logStreamToken = string.Empty;
+
+    public bool LogStreamEnabled
+    {
+        get => _logStreamEnabled;
+        set
+        {
+            if (_logStreamEnabled != value)
+            {
+                _logStreamEnabled = value;
+                OnPropertyChanged();
+                ApplyLogStreamState();
+                _ = SaveSettingsAsync();
+            }
+        }
+    }
+
+    public int LogStreamPort
+    {
+        get => _logStreamPort;
+        set
+        {
+            if (_logStreamPort != value)
+            {
+                _logStreamPort = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(LogStreamStatusText));
+                OnPropertyChanged(nameof(LogStreamUrlHint));
+            }
+        }
+    }
+
+    public string LogStreamToken
+    {
+        get => _logStreamToken;
+        set
+        {
+            if (_logStreamToken != value)
+            {
+                _logStreamToken = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public bool LogStreamRunning => _logStreamService.IsRunning;
+
+    public int LogStreamClientCount => _logStreamService.ConnectedClientCount;
+
+    public string LogStreamStatusText
+    {
+        get
+        {
+            if (!_logStreamEnabled) return LocalizedStrings.GetString("LogStreamingStopped");
+            if (_logStreamService.IsRunning)
+                return string.Format(LocalizedStrings.GetString("LogStreamingRunning"), _logStreamPort);
+            return LocalizedStrings.GetString("LogStreamingStopped");
+        }
+    }
+
+    public string LogStreamUrlHint
+    {
+        get
+        {
+            try
+            {
+                var host = System.Net.Dns.GetHostName();
+                return $"http://{host}:{_logStreamPort}";
+            }
+            catch
+            {
+                return $"http://<hostname>:{_logStreamPort}";
+            }
+        }
+    }
+
+    private void ApplyLogStreamState()
+    {
+        if (_logStreamEnabled)
+        {
+            try
+            {
+                _logStreamService.Start(_logStreamPort, _logStreamToken);
+            }
+            catch (Exception ex)
+            {
+                _logService.Error($"Failed to start log stream: {ex.Message}");
+                _logStreamEnabled = false;
+                OnPropertyChanged(nameof(LogStreamEnabled));
+            }
+        }
+        else
+        {
+            _logStreamService.Stop();
+        }
+        OnPropertyChanged(nameof(LogStreamRunning));
+        OnPropertyChanged(nameof(LogStreamStatusText));
+        OnPropertyChanged(nameof(LogStreamUrlHint));
+    }
+
+    private async Task RestartLogStreamAsync()
+    {
+        _logStreamService.Stop();
+        if (_logStreamEnabled)
+        {
+            try
+            {
+                _logStreamService.Start(_logStreamPort, _logStreamToken);
+                _logService.AppLog($"Log stream restarted on port {_logStreamPort}");
+            }
+            catch (Exception ex)
+            {
+                _logService.Error($"Failed to restart log stream: {ex.Message}");
+                _logStreamEnabled = false;
+                OnPropertyChanged(nameof(LogStreamEnabled));
+            }
+        }
+        OnPropertyChanged(nameof(LogStreamRunning));
+        OnPropertyChanged(nameof(LogStreamStatusText));
+        OnPropertyChanged(nameof(LogStreamUrlHint));
+        await SaveSettingsAsync();
+    }
 
     public Func<string, string, Task<bool>>? ConfirmActionFunc { get; set; }
 
@@ -488,6 +626,16 @@ public class MainViewModel : INotifyPropertyChanged
         _configService = new ConfigurationService(_logService, resolvedPath);
         _downloadService = new LlamaCppDownloadService(resolvedPath);
         _dockerService = new DockerCliService(_logService);
+        _autoStartService = new AutoStartService(_logService);
+        _logStreamService = new LogStreamService(_logService);
+        _logStreamService.ClientCountChanged += () =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                OnPropertyChanged(nameof(LogStreamClientCount));
+                OnPropertyChanged(nameof(LogStreamStatusText));
+            });
+        };
 
         RunningInstances.CollectionChanged += (_, _) =>
         {
@@ -513,12 +661,13 @@ public class MainViewModel : INotifyPropertyChanged
         StartServerCommand = new AsyncRelayCommand(StartServerAsync, () => CanStartServer);
         RestartServerCommand = new AsyncRelayCommand(RestartServerAsync, () => IsServerRunning);
         StopServerCommand = new AsyncRelayCommand(StopServerAsync, () => IsServerRunning || (_selectedInstance?.IsRunning ?? false));
-        UnloadModelCommand = new AsyncRelayCommand(UnloadModelAsync, () => IsServerRunning && !(_selectedInstance?.IsSingleModelMode ?? true));
+        UnloadModelCommand = new AsyncRelayCommand(UnloadModelAsync, () => IsServerRunning);
         OpenInBrowserCommand = new AsyncRelayCommand(OpenInBrowserAsync, () => CanOpenInBrowser);
         SaveProfileCommand = new AsyncRelayCommand(SaveProfileAsync);
         LoadProfileCommand = new AsyncRelayCommand(LoadProfileAsync);
         DeleteProfileCommand = new AsyncRelayCommand(DeleteProfileAsync);
         RenameProfileCommand = new AsyncRelayCommand(RenameProfileAsync);
+        CloneProfileCommand = new AsyncRelayCommand(CloneProfileAsync);
         ExportProfileCommand = new AsyncRelayCommand(ExportProfileAsync);
         ExportToBatCommand = new AsyncRelayCommand(ExportToBatAsync);
         ImportProfileCommand = new AsyncRelayCommand(ImportProfileAsync);
@@ -531,6 +680,12 @@ public class MainViewModel : INotifyPropertyChanged
         OpenArgumentPickerCommand = new AsyncRelayCommand(OpenArgumentPickerAsync);
         ShowWindowCommand = new RelayCommand(_ => { });
         CloseFromTrayCommand = new RelayCommand(async _ => { });
+        RestartLogStreamCommand = new AsyncRelayCommand(RestartLogStreamAsync);
+
+        RunScenarioCommand = new AsyncRelayCommand(RunScenarioAsync, () => HasSelectedScenario);
+        EditScenarioCommand = new AsyncRelayCommand(EditScenarioAsync);
+        CreateScenarioCommand = new AsyncRelayCommand(CreateScenarioAsync);
+        DeleteScenarioCommand = new AsyncRelayCommand(DeleteScenarioAsync, () => HasSelectedScenario);
 
         LoadProfiles();
         _logService.AppLog("Application started");
@@ -541,12 +696,13 @@ public class MainViewModel : INotifyPropertyChanged
     public async Task InitializeAsync()
     {
         var settings = await _configService.LoadAppSettingsAsync();
-        ApplyAppSettings(settings);
+        await ApplyAppSettingsAsync(settings);
         _logService.Configure(settings.MaxLogFiles, settings.MaxLogSizeBytes);
         _ = CheckDefaultLlamaVersionAsync();
         StartPeriodicUpdateChecks();
-        _ = RefreshSupportedFlagsAsync();
+        await RefreshSupportedFlagsAsync();
         _ = CheckDockerAvailabilityAsync();
+        ApplyLogStreamFromSettings();
     }
 
     public async Task CheckDockerAvailabilityAsync()
@@ -567,7 +723,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public void ApplyAppSettings(AppSettings settings)
+    public async Task ApplyAppSettingsAsync(AppSettings settings)
     {
         var language = string.IsNullOrEmpty(settings.Language) ? "en" : settings.Language;
         
@@ -576,7 +732,7 @@ public class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectedLanguage));
         
         ProfileNameInput = settings.ProfileNameInput;
-        ExecutablePath = settings.ExecutablePath;
+        ExecutablePath = ResolveExecutablePath(settings.ExecutablePath);
         ModelPath = settings.ModelPath;
         ModelsDir = settings.ModelsDir;
         LlamaCppCustomDownloadPath = settings.LlamaCppCustomDownloadPath ?? "";
@@ -631,6 +787,7 @@ public class MainViewModel : INotifyPropertyChanged
         HfRepoDraft = settings.HfRepoDraft;
         AutoRestart = settings.AutoRestart;
         ConfirmStopServer = settings.ConfirmStopServer;
+        AutoStartWithSystem = _autoStartService.IsAutoStartEnabled();
         AutoScroll = settings.AutoScrollLog;
         LogEnabled = settings.LogEnabled;
         LogVisible = settings.LogVisible;
@@ -700,6 +857,34 @@ public class MainViewModel : INotifyPropertyChanged
         }
 
         ApplyTheme();
+
+        _logStreamPort = settings.LogStreamPort > 0 ? settings.LogStreamPort : 5872;
+        _logStreamToken = settings.LogStreamToken ?? "";
+        _logStreamEnabled = settings.LogStreamEnabled;
+
+        ScenariosEnabled = settings.ScenariosEnabled;
+        await LoadScenariosAsync();
+        SelectedScenario = settings.SelectedScenario ?? "";
+        UpdateSelectedScenarioAutoStart();
+
+        // Load dialog geometry into in-memory dictionary
+        DialogGeometryDict.Clear();
+        if (settings.DialogGeometry != null)
+        {
+            foreach (var kv in settings.DialogGeometry)
+                DialogGeometryDict[kv.Key] = kv.Value;
+        }
+    }
+
+    public void ApplyLogStreamFromSettings()
+    {
+        if (_logStreamEnabled)
+            ApplyLogStreamState();
+        OnPropertyChanged(nameof(LogStreamEnabled));
+        OnPropertyChanged(nameof(LogStreamPort));
+        OnPropertyChanged(nameof(LogStreamToken));
+        OnPropertyChanged(nameof(LogStreamStatusText));
+        OnPropertyChanged(nameof(LogStreamUrlHint));
     }
 
     public bool UseDefaultDataPath
@@ -871,6 +1056,13 @@ public class MainViewModel : INotifyPropertyChanged
                 await CopyDirectoryAsync(profilesSource, profilesTarget);
             }
 
+            var scenariosSource = Path.Combine(sourceDir, "scenarios");
+            if (Directory.Exists(scenariosSource))
+            {
+                var scenariosTarget = Path.Combine(targetDir, "scenarios");
+                await CopyDirectoryAsync(scenariosSource, scenariosTarget);
+            }
+
             foreach (var file in new[] { "app.json", "app.log" })
             {
                 var src = Path.Combine(sourceDir, file);
@@ -938,7 +1130,7 @@ public class MainViewModel : INotifyPropertyChanged
         {
             Language = SelectedLanguage,
             ProfileNameInput = ProfileNameInput,
-            ExecutablePath = ExecutablePath,
+            ExecutablePath = NormalizeExecutablePathForSaving(ExecutablePath),
             ModelPath = ModelPath,
             ModelsDir = ModelsDir,
             LlamaCppCustomDownloadPath = LlamaCppCustomDownloadPath,
@@ -1022,7 +1214,14 @@ public class MainViewModel : INotifyPropertyChanged
             AppUpdateCheckIntervalMinutes = _appUpdateCheckInterval,
             LlamaUpdateCheckIntervalMinutes = _llamaUpdateCheckInterval,
             CachedLlamaReleasesJson = System.Text.Json.JsonSerializer.Serialize(_cachedLlamaReleases),
-            CachedLlamaReleasesTimestamp = _cachedLlamaReleasesTimestamp
+            CachedLlamaReleasesTimestamp = _cachedLlamaReleasesTimestamp,
+            LogStreamEnabled = _logStreamEnabled,
+            LogStreamPort = _logStreamPort,
+            LogStreamToken = _logStreamToken,
+            ScenariosEnabled = _scenariosEnabled,
+            SelectedScenario = _selectedScenario,
+            AutoStartWithSystem = _autoStartWithSystem,
+            DialogGeometry = new Dictionary<string, DialogGeometry>(DialogGeometryDict)
         };
     }
 
@@ -1678,6 +1877,21 @@ public class MainViewModel : INotifyPropertyChanged
         set { _confirmStopServer = value; OnPropertyChanged(); }
     }
 
+    public bool AutoStartWithSystem
+    {
+        get => _autoStartWithSystem;
+        set
+        {
+            if (_autoStartWithSystem != value)
+            {
+                _autoStartWithSystem = value;
+                _autoStartService.SetAutoStart(value);
+                OnPropertyChanged();
+                _ = SaveSettingsAsync();
+            }
+        }
+    }
+
     public bool AutoScroll
     {
         get => _autoScroll;
@@ -1858,6 +2072,7 @@ public class MainViewModel : INotifyPropertyChanged
     public string HfRepoDraftPlaceholder => LocalizedStrings.Instance.PlaceholderHfRepoDraft;
     public string FeatureNotSupportedTooltip => LocalizedStrings.Instance.FeatureNotSupported;
     public string UnsupportedArgWarningText => LocalizedStrings.Instance.UnsupportedArgWarning;
+    public string ToastClickToApplyText => LocalizedStrings.Instance.ToastClickToApply;
 
     /// <summary>
     /// True when the SpecType control has a meaningful value that is not supported
@@ -2091,7 +2306,7 @@ public class MainViewModel : INotifyPropertyChanged
 
             if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
             {
-                _logService.Warning($"[FlagFilter] Executable not found (checked '{exePath}'), flag filtering disabled");
+                _logService.Warning($"[FlagFilter] llama-server.exe not found at '{exePath}'. Download llama.cpp or set Executable Path to enable flag filtering.");
                 _supportedFlags = null;
                 _lastCheckedExePath = "";
                 _lastHelpText = "";
@@ -2099,6 +2314,7 @@ public class MainViewModel : INotifyPropertyChanged
                 UpdateSpecTypeOptions();
                 UpdateCacheTypeOptions();
                 UpdateCurrentCommand();
+                return;
             }
 
             // Avoid re-parsing the same executable
@@ -2113,7 +2329,7 @@ public class MainViewModel : INotifyPropertyChanged
             }
             else
             {
-                _logService.Warning($"[FlagFilter] Failed to parse help from '{exePath}', flag filtering disabled");
+                _logService.Warning($"[FlagFilter] Failed to parse --help output from '{exePath}'. Flag filtering disabled.");
                 _supportedFlags = null;
                 _lastHelpText = "";
             }
@@ -2128,6 +2344,43 @@ public class MainViewModel : INotifyPropertyChanged
             _logService.Error($"[FlagFilter] RefreshSupportedFlagsAsync threw: {ex}");
             _supportedFlags = null;
         }
+    }
+
+    private string ResolveExecutablePath(string savedPath)
+    {
+        if (!string.IsNullOrEmpty(savedPath))
+        {
+            // Use LlamaServerService resolver which handles both absolute paths
+            // and bare names resolvable via PATH (e.g. "llama-server")
+            var resolved = LlamaServerService.ResolveExecutablePath(savedPath);
+            if (!string.IsNullOrEmpty(resolved))
+                return resolved;
+
+            // Fall back to the default downloaded llama-server
+            var defaultPath = _downloadService.GetDefaultLlamaServerPath();
+            if (!string.IsNullOrEmpty(defaultPath) && File.Exists(defaultPath))
+            {
+                _logService.Info($"[FlagFilter] Saved executable path '{savedPath}' not found, using default '{defaultPath}'");
+                return defaultPath;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private string NormalizeExecutablePathForSaving(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return path;
+
+        var defaultPath = _downloadService.GetDefaultLlamaServerPath();
+        if (!string.IsNullOrEmpty(defaultPath) &&
+            string.Equals(Path.GetFullPath(path), Path.GetFullPath(defaultPath), StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        return path;
     }
 
     private void UpdateSpecTypeOptions()
@@ -2493,6 +2746,49 @@ public class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<string> Profiles { get; }
     public ObservableCollection<string> LogLines { get; } = new();
 
+    public bool ScenariosEnabled
+    {
+        get => _scenariosEnabled;
+        set
+        {
+            if (_scenariosEnabled != value)
+            {
+                _scenariosEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string SelectedScenario
+    {
+        get => _selectedScenario;
+        set
+        {
+            if (_selectedScenario != value)
+            {
+                _selectedScenario = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasSelectedScenario));
+                UpdateSelectedScenarioAutoStart();
+            }
+        }
+    }
+
+    public bool HasSelectedScenario => !string.IsNullOrEmpty(_selectedScenario);
+
+    public bool SelectedScenarioAutoStart
+    {
+        get => _selectedScenarioAutoStart;
+        set
+        {
+            if (_selectedScenarioAutoStart != value)
+            {
+                _selectedScenarioAutoStart = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public string LogOutput
     {
         get => _logOutput;
@@ -2544,6 +2840,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand LoadProfileCommand { get; }
     public ICommand DeleteProfileCommand { get; }
     public ICommand RenameProfileCommand { get; }
+    public ICommand CloneProfileCommand { get; }
     public ICommand ExportProfileCommand { get; }
     public ICommand ExportToBatCommand { get; }
     public ICommand ImportProfileCommand { get; }
@@ -2556,6 +2853,12 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ShowWindowCommand { get; set; }
     public ICommand CloseFromTrayCommand { get; set; }
     public ICommand OpenArgumentPickerCommand { get; }
+    public ICommand RestartLogStreamCommand { get; }
+
+    public ICommand RunScenarioCommand { get; }
+    public ICommand EditScenarioCommand { get; }
+    public ICommand CreateScenarioCommand { get; }
+    public ICommand DeleteScenarioCommand { get; }
 
     /// <summary>
     /// Set by MainWindow to allow the ViewModel to request opening the download dialog.
@@ -2708,8 +3011,11 @@ public class MainViewModel : INotifyPropertyChanged
 
         var dialog = new ArgumentPickerWindow();
         var vm = new ArgumentPickerViewModel(filtered);
-        dialog.SetViewModel(vm);
+        dialog.SetViewModel(vm, _configService);
         await dialog.ShowDialog(MainWindow.Instance!);
+
+        await DialogPositionHelper.SaveCapturedGeometryAsync(dialog.CapturedGeometry, _configService, "ArgumentPicker");
+        if (dialog.CapturedGeometry != null) DialogGeometryDict["ArgumentPicker"] = dialog.CapturedGeometry;
 
         if (!dialog.IsConfirmed) return;
 
@@ -2939,6 +3245,23 @@ private void LoadConfigToUI(ServerConfiguration config)
         {
             _isLoadingConfig = false;
             UpdateModelLoadModeStatus();
+
+            var savedPath = config.ExecutablePath ?? string.Empty;
+            if (!string.IsNullOrEmpty(savedPath) && LlamaServerService.ResolveExecutablePath(savedPath) == null && !File.Exists(savedPath))
+            {
+                var defaultPath = _downloadService.GetDefaultLlamaServerPath();
+                if (!string.IsNullOrEmpty(defaultPath))
+                {
+                    Toasts.Show(
+                        string.Format(LocalizedStrings.GetString("ToastSavedExecutableNotFound"), savedPath),
+                        durationMs: 15000,
+                        onClick: () =>
+                        {
+                            ExecutablePath = defaultPath;
+                            _ = RefreshSupportedFlagsAsync();
+                        });
+                }
+            }
         }
     }
 
@@ -3049,12 +3372,12 @@ private void LoadConfigToUI(ServerConfiguration config)
         while (i < tokens.Count)
         {
             var token = tokens[i];
-            bool isFlag = token.StartsWith("-");
+            bool isFlag = CommandLineParser.IsFlag(token);
 
             if (isFlag && i + 1 < tokens.Count)
             {
                 var next = tokens[i + 1];
-                bool nextIsFlag = next.StartsWith("-");
+                bool nextIsFlag = CommandLineParser.IsFlag(next);
                 bool nextIsQuotedValue = (next.StartsWith("\"") && next.EndsWith("\"")) ||
                                          (next.StartsWith("'") && next.EndsWith("'")) ||
                                          (next.StartsWith("{") && next.EndsWith("}")) ||
@@ -3459,12 +3782,12 @@ public void RebuildCustomArgumentsFromToggles()
         while (i < tokens.Count)
         {
             var token = tokens[i];
-            bool isFlag = token.StartsWith("-");
+            bool isFlag = CommandLineParser.IsFlag(token);
 
             if (isFlag && i + 1 < tokens.Count)
             {
                 var next = tokens[i + 1];
-                bool nextIsFlag = next.StartsWith("-");
+                bool nextIsFlag = CommandLineParser.IsFlag(next);
                 bool nextIsQuotedValue = (next.StartsWith("\"") && next.EndsWith("\"")) ||
                                          (next.StartsWith("'") && next.EndsWith("'")) ||
                                          (next.StartsWith("{") && next.EndsWith("}")) ||
@@ -4007,6 +4330,258 @@ public void RebuildCustomArgumentsFromToggles()
         }
     }
 
+    private async Task LoadScenariosAsync()
+    {
+        Scenarios.Clear();
+        var scenarios = await _configService.GetAllScenariosAsync();
+        foreach (var scenario in scenarios)
+        {
+            Scenarios.Add(scenario.Name);
+        }
+    }
+
+    private void UpdateSelectedScenarioAutoStart()
+    {
+        if (string.IsNullOrEmpty(_selectedScenario))
+        {
+            SelectedScenarioAutoStart = false;
+            return;
+        }
+
+        _ = UpdateScenarioAutoStartFromDiskAsync();
+    }
+
+    private async Task UpdateScenarioAutoStartFromDiskAsync()
+    {
+        var name = _selectedScenario;
+        var scenario = await _configService.LoadScenarioAsync(name);
+        if (scenario != null && _selectedScenario == name)
+        {
+            SelectedScenarioAutoStart = scenario.AutoStart;
+        }
+    }
+
+    private async Task RunScenarioAsync()
+    {
+        if (_isScenarioRunning) return;
+        _isScenarioRunning = true;
+        try
+        {
+        var scenarioName = _selectedScenario;
+        if (string.IsNullOrEmpty(scenarioName)) return;
+
+        var scenario = await _configService.LoadScenarioAsync(scenarioName);
+        if (scenario == null) return;
+
+        _logService.AppLog(string.Format(LocalizedStrings.GetString("ScenarioRunning"), scenarioName));
+
+        int launched = 0;
+        for (int i = 0; i < scenario.ProfileNames.Count; i++)
+        {
+            var profileName = scenario.ProfileNames[i];
+            var config = await _configService.LoadProfileAsync(profileName);
+
+            if (config == null)
+            {
+                _logService.Warning(string.Format(LocalizedStrings.GetString("ScenarioProfileNotFound"), profileName));
+                continue;
+            }
+
+            if (!config.RunInDocker && string.IsNullOrEmpty(config.ExecutablePath))
+            {
+                var defaultPath = _downloadService.GetDefaultLlamaServerPath();
+                if (defaultPath != null)
+                    config.ExecutablePath = defaultPath;
+            }
+
+            var logPrefix = $"[{profileName}] ";
+
+            if (RunningInstances.Any(inst => inst.ProfileName == profileName))
+            {
+                _logService.Warning($"Instance '{profileName}' already running, skipping");
+                continue;
+            }
+
+            var targetHost = string.IsNullOrWhiteSpace(config.Host) ? "127.0.0.1" : config.Host;
+            var targetPort = config.Port;
+            var collision = RunningInstances.FirstOrDefault(inst => inst.IsRunning
+                && inst.Configuration.Host == targetHost
+                && inst.Configuration.Port == targetPort);
+            if (collision != null)
+            {
+                var toastText = string.Format(LocalizedStrings.GetString("PortCollisionToast"), targetHost, targetPort, collision.ProfileName);
+                Toasts.Show(toastText);
+                continue;
+            }
+
+            ServerInstance? instance = null;
+            try
+            {
+                instance = new ServerInstance(
+                    profileName,
+                    config,
+                    logPrefix,
+                    _logService,
+                    _autoRestart,
+                    _logEnabled);
+
+                if (config.RunInDocker)
+                    instance.SetDockerService(_dockerService);
+
+                instance.ServerStateChanged += OnInstanceServerStateChanged;
+                instance.RequestRemove += OnInstanceRequestRemove;
+                instance.PropertyChanged += OnInstancePropertyChanged;
+
+                await instance.StartAsync(_supportedFlags, _validSpecTypeValues, _validCacheTypeValues);
+
+                if (instance.IsRunning)
+                {
+                    RunningInstances.Add(instance);
+                    launched++;
+                    instance = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.Error($"Failed to start instance '{profileName}' from scenario: {ex.Message}");
+            }
+            finally
+            {
+                if (instance != null)
+                {
+                    instance.ServerStateChanged -= OnInstanceServerStateChanged;
+                    instance.RequestRemove -= OnInstanceRequestRemove;
+                    instance.PropertyChanged -= OnInstancePropertyChanged;
+                    instance.Dispose();
+                }
+            }
+
+            if (i < scenario.ProfileNames.Count - 1 && scenario.IntervalSeconds > 0)
+            {
+                await Task.Delay(scenario.IntervalSeconds * 1000);
+            }
+        }
+
+        _logService.AppLog(string.Format(LocalizedStrings.GetString("ScenarioCompleted"), scenarioName, launched));
+        }
+        finally
+        {
+            _isScenarioRunning = false;
+        }
+    }
+
+    public async Task RunAutoStartScenarioAsync()
+    {
+        if (!_scenariosEnabled) return;
+
+        var scenarios = await _configService.GetAllScenariosAsync();
+        var autoStartScenario = scenarios.FirstOrDefault(s => s.AutoStart);
+        if (autoStartScenario == null) return;
+
+        _logService.AppLog(string.Format(LocalizedStrings.GetString("ScenarioAutoStarted"), autoStartScenario.Name));
+        SelectedScenario = autoStartScenario.Name;
+        await RunScenarioAsync();
+    }
+
+    public async Task<Models.ScenarioInfo?> OpenScenarioDialogAsync(Models.ScenarioInfo? existing = null)
+    {
+        var allProfileInfos = _configService.GetAllProfiles();
+        var allProfileNames = allProfileInfos.Select(p => p.Name).OrderBy(n => n).ToList();
+        var profileConfigs = allProfileInfos.ToDictionary(p => p.Name, p => p.Configuration);
+        var existingNames = new HashSet<string>(
+            (await _configService.GetAllScenariosAsync()).Select(s => s.Name),
+            StringComparer.OrdinalIgnoreCase);
+        if (existing != null)
+            existingNames.Remove(existing.Name);
+
+        var vm = new ScenarioDialogViewModel(allProfileNames, profileConfigs, existingNames, existing,
+            (name, config) => _configService.SaveProfileAsync(name, config));
+        var dialog = new ScenarioDialogWindow();
+        dialog.SetViewModel(vm, _configService);
+        await dialog.ShowDialog(MainWindow.Instance!);
+
+        await DialogPositionHelper.SaveCapturedGeometryAsync(dialog.CapturedGeometry, _configService, "ScenarioDialog");
+        if (dialog.CapturedGeometry != null) DialogGeometryDict["ScenarioDialog"] = dialog.CapturedGeometry;
+
+        if (vm.DialogResult)
+            return vm.GetResult();
+        return null;
+    }
+
+    private async Task EditScenarioAsync()
+    {
+        var scenarioName = _selectedScenario;
+        if (string.IsNullOrEmpty(scenarioName)) return;
+
+        var scenario = await _configService.LoadScenarioAsync(scenarioName);
+        if (scenario == null) return;
+
+        var result = await OpenScenarioDialogAsync(scenario);
+        if (result == null) return;
+
+        await _configService.SaveScenarioAsync(result);
+        if (result.Name != scenarioName)
+        {
+            await _configService.DeleteScenarioAsync(scenarioName);
+        }
+        await LoadScenariosAsync();
+        SelectedScenario = result.Name;
+    }
+
+    private async Task CreateScenarioAsync()
+    {
+        var result = await OpenScenarioDialogAsync(null);
+        if (result == null) return;
+
+        await _configService.SaveScenarioAsync(result);
+        await LoadScenariosAsync();
+        SelectedScenario = result.Name;
+    }
+
+    private async Task DeleteScenarioAsync()
+    {
+        var scenarioName = _selectedScenario;
+        if (string.IsNullOrEmpty(scenarioName)) return;
+
+        var result = await ShowConfirmAsync(
+            string.Format(LocalizedStrings.GetString("ConfirmDeleteScenario"), scenarioName),
+            LocalizedStrings.Instance.ConfirmTitle);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            await _configService.DeleteScenarioAsync(scenarioName);
+            await LoadScenariosAsync();
+            SelectedScenario = Scenarios.FirstOrDefault() ?? "";
+        }
+    }
+
+    public async Task ToggleScenarioAutoStartAsync()
+    {
+        var scenarioName = _selectedScenario;
+        if (string.IsNullOrEmpty(scenarioName)) return;
+
+        var scenario = await _configService.LoadScenarioAsync(scenarioName);
+        if (scenario == null) return;
+
+        scenario.AutoStart = !scenario.AutoStart;
+
+        if (scenario.AutoStart)
+        {
+            var allScenarios = await _configService.GetAllScenariosAsync();
+            foreach (var s in allScenarios)
+            {
+                if (s.Name != scenarioName && s.AutoStart)
+                {
+                    s.AutoStart = false;
+                    await _configService.SaveScenarioAsync(s);
+                }
+            }
+        }
+
+        await _configService.SaveScenarioAsync(scenario);
+        SelectedScenarioAutoStart = scenario.AutoStart;
+    }
+
     private async Task SaveProfileAsync()
     {
         var name = !string.IsNullOrWhiteSpace(ProfileNameInput) ? ProfileNameInput : SelectedProfile;
@@ -4017,6 +4592,7 @@ public void RebuildCustomArgumentsFromToggles()
         }
 
         var config = GetCurrentConfig();
+        config.ExecutablePath = NormalizeExecutablePathForSaving(config.ExecutablePath);
         await _configService.SaveProfileAsync(name, config);
 
         // Sync the running instance's cached config if it matches the saved profile
@@ -4214,6 +4790,193 @@ public void RebuildCustomArgumentsFromToggles()
         return result ?? string.Empty;
     }
 
+    public class CloneDialogResult
+    {
+        public string Name { get; set; } = "";
+        public ServerConfiguration Config { get; set; } = new();
+    }
+
+    public static async Task<CloneDialogResult?> ShowCloneDialogAsync(
+        string sourceName, ServerConfiguration sourceConfig, HashSet<string> existingNames, Window? owner = null)
+    {
+        var dialog = new Window
+        {
+            Title = string.Format(LocalizedStrings.GetString("CloneProfileTitle"), sourceName),
+            Width = 400,
+            Height = 350,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false
+        };
+
+        var panel = new StackPanel { Margin = new Avalonia.Thickness(15) };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = LocalizedStrings.GetString("CloneProfileNameLabel"),
+            Margin = new Avalonia.Thickness(0, 0, 0, 5)
+        });
+
+        var nameTextBox = new TextBox
+        {
+            Text = sourceName + " (copy)",
+            Margin = new Avalonia.Thickness(0, 0, 0, 3),
+            BorderBrush = Avalonia.Media.Brushes.Green,
+            BorderThickness = new Avalonia.Thickness(1)
+        };
+        panel.Children.Add(nameTextBox);
+
+        var warningText = new TextBlock
+        {
+            Foreground = Avalonia.Media.Brushes.Red,
+            Margin = new Avalonia.Thickness(0, 0, 0, 5),
+            IsVisible = false,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap
+        };
+        panel.Children.Add(warningText);
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = LocalizedStrings.GetString("CloneProfileHost"),
+            Margin = new Avalonia.Thickness(0, 5, 0, 2)
+        });
+
+        var hostTextBox = new TextBox
+        {
+            Text = sourceConfig.Host,
+            Margin = new Avalonia.Thickness(0, 0, 0, 5)
+        };
+        panel.Children.Add(hostTextBox);
+
+        var portLabel = new TextBlock
+        {
+            Text = LocalizedStrings.GetString("CloneProfilePort"),
+            Margin = new Avalonia.Thickness(0, 5, 0, 2)
+        };
+        panel.Children.Add(portLabel);
+
+        var portTextBox = new TextBox
+        {
+            Text = sourceConfig.Port.ToString(),
+            Margin = new Avalonia.Thickness(0, 0, 0, 5)
+        };
+        panel.Children.Add(portTextBox);
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = LocalizedStrings.GetString("CloneProfileContextSize"),
+            Margin = new Avalonia.Thickness(0, 5, 0, 2)
+        });
+
+        var contextTextBox = new TextBox
+        {
+            Text = sourceConfig.ContextSize?.ToString() ?? "",
+            Margin = new Avalonia.Thickness(0, 0, 0, 10)
+        };
+        panel.Children.Add(contextTextBox);
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Margin = new Avalonia.Thickness(0, 5, 0, 0)
+        };
+
+        var okButton = new Button { Content = "OK", Margin = new Avalonia.Thickness(5), IsEnabled = true };
+        var cancelButton = new Button { Content = LocalizedStrings.GetString("Cancel"), Margin = new Avalonia.Thickness(5) };
+
+        bool ValidateName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                warningText.Text = LocalizedStrings.GetString("CloneProfileNameEmpty");
+                warningText.IsVisible = true;
+                nameTextBox.BorderBrush = Avalonia.Media.Brushes.Red;
+                nameTextBox.BorderThickness = new Avalonia.Thickness(1);
+                return false;
+            }
+            if (existingNames.Contains(name))
+            {
+                warningText.Text = LocalizedStrings.GetString("CloneProfileNameExists");
+                warningText.IsVisible = true;
+                nameTextBox.BorderBrush = Avalonia.Media.Brushes.Red;
+                nameTextBox.BorderThickness = new Avalonia.Thickness(1);
+                return false;
+            }
+            warningText.IsVisible = false;
+            nameTextBox.BorderBrush = Avalonia.Media.Brushes.Green;
+            nameTextBox.BorderThickness = new Avalonia.Thickness(1);
+            return true;
+        }
+
+        ValidateName(nameTextBox.Text ?? "");
+
+        nameTextBox.TextChanged += (_, _) =>
+        {
+            var name = nameTextBox.Text ?? "";
+            var isValid = ValidateName(name);
+            okButton.IsEnabled = isValid;
+        };
+
+        CloneDialogResult? result = null;
+
+        okButton.Click += (s, e) =>
+        {
+            var name = (nameTextBox.Text ?? "").Trim();
+            if (!ValidateName(name)) return;
+
+            var clonedConfig = sourceConfig.Clone();
+            var hostVal = hostTextBox.Text?.Trim() ?? "";
+            if (!string.IsNullOrEmpty(hostVal))
+                clonedConfig.Host = hostVal;
+
+            if (int.TryParse(portTextBox.Text?.Trim(), out var portVal))
+                clonedConfig.Port = portVal;
+
+            var ctxText = contextTextBox.Text?.Trim() ?? "";
+            clonedConfig.ContextSize = string.IsNullOrEmpty(ctxText) ? null : (int.TryParse(ctxText, out var ctxVal) ? ctxVal : (int?)null);
+
+            result = new CloneDialogResult { Name = name, Config = clonedConfig };
+            dialog.Close();
+        };
+
+        cancelButton.Click += (s, e) => { dialog.Close(); };
+
+        buttonPanel.Children.Add(okButton);
+        buttonPanel.Children.Add(cancelButton);
+        panel.Children.Add(buttonPanel);
+
+        dialog.Content = panel;
+
+        await dialog.ShowDialog(owner ?? MainWindow.Instance!);
+        return result;
+    }
+
+    private async Task CloneProfileAsync()
+    {
+        var sourceName = SelectedProfile;
+        if (string.IsNullOrWhiteSpace(sourceName))
+        {
+            await ShowWarningAsync(LocalizedStrings.GetString("PleaseEnterProfileName"));
+            return;
+        }
+
+        var sourceConfig = await _configService.LoadProfileAsync(sourceName);
+        if (sourceConfig == null)
+        {
+            await ShowWarningAsync(string.Format(LocalizedStrings.GetString("ErrorLoadingFile"), sourceName));
+            return;
+        }
+
+        var existingNames = new HashSet<string>(Profiles, StringComparer.OrdinalIgnoreCase);
+        var cloneResult = await ShowCloneDialogAsync(sourceName, sourceConfig, existingNames);
+        if (cloneResult == null) return;
+
+        await _configService.SaveProfileAsync(cloneResult.Name, cloneResult.Config);
+        LoadProfiles();
+        SelectedProfile = cloneResult.Name;
+        OnPropertyChanged(nameof(WindowTitleWithProfile));
+    }
+
     private async Task ExportProfileAsync()
     {
         var filePath = await WindowsFileDialogs.SaveFileDialogAsync(
@@ -4253,6 +5016,7 @@ public void RebuildCustomArgumentsFromToggles()
             }
             else
             {
+                config.ExecutablePath = NormalizeExecutablePathForSaving(config.ExecutablePath);
                 await _configService.ExportProfileAsync(filePath, config);
             }
         }
@@ -4759,6 +5523,7 @@ public void RebuildCustomArgumentsFromToggles()
             }
         }
         RunningInstances.Clear();
+        _logStreamService.Dispose();
         _logService?.Dispose();
         _serverService?.Dispose();
     }

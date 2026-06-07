@@ -427,8 +427,16 @@ public static class ServerConfigurationExtensions
         if (string.IsNullOrWhiteSpace(args))
             return null;
 
-        var config = new ServerConfiguration();
         var parsedArgs = CommandLineParser.ParseArguments(args);
+        return ParseFromTokens(parsedArgs);
+    }
+
+    public static ServerConfiguration? ParseFromTokens(List<string> parsedArgs)
+    {
+        if (parsedArgs == null || parsedArgs.Count == 0)
+            return null;
+
+        var config = new ServerConfiguration();
         var argValues = CommandLineParser.GetArgumentValues(parsedArgs);
         var argFlags = CommandLineParser.GetArgumentFlags(parsedArgs);
 
@@ -487,7 +495,7 @@ public static class ServerConfigurationExtensions
         var unknownArgs = new List<string>();
         foreach (var arg in parsedArgs)
         {
-            if (!arg.StartsWith("-"))
+            if (!CommandLineParser.IsFlag(arg))
                 continue;
 
             if (ServerConfiguration.KnownArguments.ContainsKey(arg))
@@ -497,7 +505,15 @@ public static class ServerConfigurationExtensions
 
             if (argValues.TryGetValue(arg, out var val) && val != null)
             {
-                unknownArgs.Add(val);
+                // Quote values containing spaces or special chars so they survive re-parsing
+                if (val.Contains(' ') || val.Contains('\t') || val.Contains('"') || val.Contains('\''))
+                {
+                    unknownArgs.Add(CommandLineBuilder.QuoteValue(val));
+                }
+                else
+                {
+                    unknownArgs.Add(val);
+                }
             }
         }
 

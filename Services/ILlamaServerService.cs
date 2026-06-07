@@ -19,6 +19,8 @@ public interface ILlamaServerService
     Task StartAsync(ServerConfiguration config, HashSet<string>? supportedFlags = null, List<string>? validSpecTypeValues = null, List<string>? validCacheTypeValues = null);
     Task StopAsync();
     Task UnloadModelAsync();
+    Task<List<string>> GetLoadedModelsAsync();
+    Task UnloadSingleModelAsync(string modelId);
     Task<string?> GetCurrentModelAsync();
     Task<string?> GetSlotsStatusAsync();
 }

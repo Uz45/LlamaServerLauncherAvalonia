@@ -2,7 +2,9 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using LlamaServerLauncher.Models;
 using LlamaServerLauncher.Resources;
+using LlamaServerLauncher.Services;
 using LlamaServerLauncher.ViewModels;
 
 namespace LlamaServerLauncher;
@@ -10,21 +12,27 @@ namespace LlamaServerLauncher;
 public partial class DownloadDialogWindow : Window
 {
     private DownloadDialogViewModel? _viewModel;
+    private ConfigurationService? _configService;
 
     public LocalizedStrings Localized => LocalizedStrings.Instance;
 
     public bool DownloadCompleted { get; private set; }
+
+    /// <summary>Geometry captured in OnClosing for the caller to save asynchronously.</summary>
+    public DialogGeometry? CapturedGeometry { get; private set; }
 
     public DownloadDialogWindow()
     {
         InitializeComponent();
     }
 
-    public void SetViewModel(DownloadDialogViewModel viewModel)
+    public void SetViewModel(DownloadDialogViewModel viewModel, ConfigurationService configService)
     {
         _viewModel = viewModel;
+        _configService = configService;
         DataContext = _viewModel;
         _viewModel.RequestClose += OnRequestClose;
+        _ = DialogPositionHelper.ApplySavedGeometryAsync(this, _configService, "DownloadDialog");
     }
 
     private void OnRequestClose()
@@ -57,6 +65,13 @@ public partial class DownloadDialogWindow : Window
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         _viewModel?.CancelDownload();
+        CapturedGeometry = new DialogGeometry
+        {
+            Width = Width,
+            Height = Height,
+            Left = Position.X,
+            Top = Position.Y
+        };
         base.OnClosing(e);
     }
 }

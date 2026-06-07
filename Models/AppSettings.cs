@@ -1,7 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace LlamaServerLauncher.Models;
+
+public class DialogGeometry
+{
+    [JsonPropertyName("width")]
+    public double Width { get; set; }
+    [JsonPropertyName("height")]
+    public double Height { get; set; }
+    [JsonPropertyName("left")]
+    public double? Left { get; set; }
+    [JsonPropertyName("top")]
+    public double? Top { get; set; }
+}
 
 public class AppSettings
 {
@@ -67,6 +80,7 @@ public class AppSettings
     public bool Offline { get; set; }
     public string HfRepoDraft { get; set; } = "";
     public bool AutoRestart { get; set; }
+    public bool AutoStartWithSystem { get; set; }
     public bool ConfirmStopServer { get; set; } = true;
     public bool AutoScrollLog { get; set; } = true;
     public bool LogEnabled { get; set; } = true;
@@ -101,4 +115,13 @@ public class AppSettings
     public int LlamaUpdateCheckIntervalMinutes { get; set; } = 15;
     public string CachedLlamaReleasesJson { get; set; } = "";
     public DateTime CachedLlamaReleasesTimestamp { get; set; }
+
+    public bool LogStreamEnabled { get; set; }
+    public int LogStreamPort { get; set; } = 5872;
+    public string LogStreamToken { get; set; } = "";
+
+    public bool ScenariosEnabled { get; set; }
+    public string SelectedScenario { get; set; } = "";
+
+    public Dictionary<string, DialogGeometry> DialogGeometry { get; set; } = new();
 }

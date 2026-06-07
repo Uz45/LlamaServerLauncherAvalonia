@@ -150,6 +150,16 @@ public class ServerInstance : INotifyPropertyChanged, IDisposable
         await _service.UnloadModelAsync();
     }
 
+    public async Task<List<string>> GetLoadedModelsAsync()
+    {
+        return await _service.GetLoadedModelsAsync();
+    }
+
+    public async Task UnloadSingleModelAsync(string modelId)
+    {
+        await _service.UnloadSingleModelAsync(modelId);
+    }
+
     public Task OpenInBrowserAsync()
     {
         try

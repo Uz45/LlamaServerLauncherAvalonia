@@ -6,6 +6,27 @@ namespace LlamaServerLauncher.Models;
 
 public static class CommandLineParser
 {
+    /// <summary>
+    /// Determines whether a token is a command-line flag (e.g. -v, --threads)
+    /// rather than a negative number (e.g. -1, -0.5, -.3).
+    /// A token is a flag if it starts with '-' and the next character is a letter or another '-'.
+    /// </summary>
+    public static bool IsFlag(string token)
+    {
+        if (string.IsNullOrEmpty(token) || token[0] != '-')
+            return false;
+
+        if (token.Length < 2)
+            return true; // bare "-" is treated as a flag
+
+        char next = token[1];
+        // "-" followed by a digit or '.' is a negative number, not a flag
+        if (char.IsDigit(next) || next == '.')
+            return false;
+
+        return true;
+    }
+
     public static string NormalizeSpecialCharacters(string input)
     {
         if (string.IsNullOrEmpty(input)) return input;
@@ -90,9 +111,9 @@ public static class CommandLineParser
         {
             string arg = args[i];
 
-            if (arg.StartsWith("-"))
+            if (IsFlag(arg))
             {
-                if (i + 1 < args.Count && !args[i + 1].StartsWith("-"))
+                if (i + 1 < args.Count && !IsFlag(args[i + 1]))
                 {
                     result[arg] = args[i + 1];
                     i++;
@@ -113,7 +134,7 @@ public static class CommandLineParser
         
         foreach (var arg in args)
         {
-            if (arg.StartsWith("-"))
+            if (IsFlag(arg))
             {
                 flags.Add(arg);
             }
