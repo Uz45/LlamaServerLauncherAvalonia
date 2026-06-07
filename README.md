@@ -12,12 +12,13 @@ Built with [Avalonia UI](https://avaloniaui.net/) and .NET 8.
 
 ### Server Configuration
 - **Executable Path** — Select the `llama-server` binary, or download llama.cpp directly from the app
-- **Model Selection** — Choose a specific model file (.gguf) or set a models directory
+- **Model Selection** — Choose a specific model file (.gguf), set a models directory, or specify a HuggingFace repo
 - **Network Settings** — Configure host address (default: 127.0.0.1) and port (default: 8080)
+- **API Key** — Set authentication API key for the server
 
 ### Model Parameters
 - Context size (`-c`, `--ctx-size`)
-- Number of threads (`-t`, `--threads`)
+- Number of threads (`-t`, `--threads`) and batch threads (`-tb`, `--threads-batch`)
 - GPU layers (`-ngl`, `--gpu-layers`, `--n-gpu-layers`)
 - Batch size (`-b`, `--batch-size`)
 - UBatch size (`-ub`, `--ubatch-size`)
@@ -58,12 +59,31 @@ Built with [Avalonia UI](https://avaloniaui.net/) and .NET 8.
 ### Feature Detection
 The app automatically parses `llama-server --help` to detect which flags your binary supports. Unsupported options are visually indicated in the UI.
 
+### Multi-Instance Server Management
+- Run multiple server instances simultaneously, each with its own profile/configuration
+- Per-instance controls: start, stop, restart, unload model, open in browser
+- Per-instance auto-restart on crash and log toggle
+- Short-lived server error indicator (shows if instance exits within 5 seconds of starting)
+- Instance view in system tray menu with full per-instance controls
+
+### Scenarios
+- Define sequences of profiles that run in order with configurable time intervals
+- Auto-start scenarios on application launch
+- Create, edit, rename, and delete scenarios
+- Drag-and-drop profile ordering within a scenario
+- Clone profile directly into a scenario
+
 ### Logging & Monitoring
 - Log file output (`--log-file`)
 - Verbose logging (`-v`, `--verbose`)
 - Real-time log viewer with auto-scroll
 - Server status display with process ID
 - Auto-restart on crash
+- **Built-in Log Stream Server** — WebSocket-based log streaming with HTTP API endpoints:
+  - `/ws` — Real-time WebSocket log streaming with optional token authentication
+  - `/api/logs/history` — JSON endpoint for log history
+  - `/api/status` — Stream server status
+  - Built-in HTML log viewer page with auto-scroll, clear, and reconnect controls
 
 ### llama.cpp Integration
 - **One-click download** — Download official llama.cpp releases directly from GitHub
@@ -74,8 +94,14 @@ The app automatically parses `llama-server --help` to detect which flags your bi
 ### App Updates
 - **Auto-update** — Automatically checks for new application releases and supports one-click update with restart
 
+### System Integration
+- **Auto-start** — Register the app to start with the operating system (Windows registry, Linux autostart .desktop, macOS LaunchAgent)
+- **Single instance** — Enforces only one running instance; launching again activates the existing window
+- **Toast notifications** — In-app toast messages for important events and errors
+
 ### Docker Support
 - Docker CLI integration for container-based workflows
+- Run individual instances in Docker containers
 
 ### Profile Management
 - Save, load, rename, and delete configuration profiles
@@ -83,6 +109,7 @@ The app automatically parses `llama-server --help` to detect which flags your bi
 - Import profiles from JSON
 - Export/import all profiles as a ZIP archive
 - Unsaved changes tracking
+- Clone profiles to quickly create variants
 
 ### Drag & Drop
 Drop files onto the window to import configurations or set paths:
@@ -95,7 +122,7 @@ Drop files onto the window to import configurations or set paths:
 
 ### System Tray
 - Minimize to system tray on window minimize
-- Tray icon menu with server controls (start, stop, unload model, open in browser)
+- Tray icon menu with per-instance server controls (start, stop, restart, auto-restart toggle, log toggle, unload model, open in browser)
 - Double-click tray icon to restore window
 
 ### Localization
@@ -110,6 +137,7 @@ Drop files onto the window to import configurations or set paths:
 - Auto-fit height mode (window auto-sizes to content)
 - Collapsible log panel and tab panel
 - Window position and size persistence
+- Dialog position and size persistence
 
 ### Data Management
 - Configurable data directory (default or custom location)
@@ -150,7 +178,7 @@ dotnet publish LlamaServerLauncher.csproj -c Release -r osx-x64 -o ./publish/osx
 ## Usage
 
 1. Click **Download llama.cpp** to download the binary, or click **Browse** next to **Executable** and select your `llama-server`
-2. Click **Browse** next to **Model** and select your model file (.gguf), or set a models directory
+2. Click **Browse** next to **Model** and select your model file (.gguf), or set a models directory, or enter a HuggingFace repo
 3. Configure additional parameters as needed
 4. Click **Start Server** to launch llama-server
 5. Monitor logs in the **Log Output** section
@@ -173,6 +201,25 @@ To export configurations:
 - Use **Import All** to load all profiles from a ZIP archive
 - Drag and drop `.json`, `.bat`, `.cmd`, `.sh`, or `.command` files onto the window
 
+### Working with Scenarios
+
+Scenarios allow you to run multiple profiles in sequence with timed transitions:
+
+1. Click **Scenarios** to open the scenario management interface
+2. Click **New Scenario** to create a scenario
+3. Add profiles to the scenario in the desired order
+4. Set the interval (in seconds) between profile switches
+5. Optionally enable **Auto-start** to launch the scenario on application startup
+6. Save the scenario
+
+### Log Stream Server
+
+The built-in log stream server enables remote log monitoring:
+
+1. Enable and configure the log stream server in settings (port and optional token)
+2. Open `http://localhost:<port>/` in a browser for the built-in web viewer
+3. Connect via WebSocket at `ws://localhost:<port>/ws?token=<token>` for real-time logs
+
 ## Architecture
 
 - **Framework**: Avalonia 12.0.1 (.NET 8.0)
@@ -182,52 +229,62 @@ To export configurations:
 ### Project Structure
 ```
 LlamaServerLauncher/
-├── Models/                   # Data models and command-line building
-│   ├── ServerConfiguration   # All llama-server parameters + KnownArguments mapping
-│   ├── CommandLineBuilder    # Constructs full llama-server command line
-│   ├── CommandLineParser     # Tokenizes and parses arguments (handles quotes, JSON, arrays)
-│   ├── AppSettings           # Persistent application settings
-│   ├── ProfileInfo           # Profile metadata
-│   └── HelpArgumentInfo      # Help argument metadata for feature detection
-├── ViewModels/               # MVVM view models
-│   ├── MainViewModel         # Main application logic and state
+├── Models/                            # Data models and command-line building
+│   ├── ServerConfiguration            # All llama-server parameters + KnownArguments mapping
+│   ├── CommandLineBuilder             # Constructs full llama-server command line
+│   ├── CommandLineParser              # Tokenizes and parses arguments (handles quotes, JSON, arrays)
+│   ├── LlamaArgumentDefinition        # Structured argument metadata (flag, aliases, descriptions, defaults)
+│   ├── LlamaArgumentRegistry          # Complete registry of known llama-server arguments with EN/RU docs
+│   ├── ServerInstance                 # Per-instance server lifecycle management
+│   ├── ScenarioInfo                   # Scenario definition (profile sequence, interval, auto-start)
+│   ├── AppSettings                    # Persistent application settings (including dialog geometry)
+│   ├── ProfileInfo                    # Profile metadata
+│   └── HelpArgumentInfo               # Help argument metadata for feature detection
+├── ViewModels/                        # MVVM view models
+│   ├── MainViewModel                  # Main application logic and state (multi-instance, scenarios)
+│   ├── ScenarioDialogViewModel        # Scenario creation/editing logic
 │   ├── DownloadDialogViewModel
 │   ├── ArgumentPickerViewModel
-│   ├── RelayCommand          # Custom ICommand implementation
-│   └── AsyncRelayCommand
-├── Services/                 # Business logic services
-│   ├── LlamaServerService    # Process management, HTTP slots/model queries
-│   ├── ILlamaServerService   # Service interface
-│   ├── ConfigurationService  # Profile and settings persistence (JSON)
-│   ├── LlamaCppDownloadService # Downloads llama.cpp releases from GitHub
-│   ├── LlamaHelpParserService  # Parses --help output for feature detection
-│   ├── LogService            # Application and server log management
-│   ├── WindowsFileDialogs    # File/folder picker abstractions
-│   ├── AppUpdateService      # Application auto-update via GitHub releases
-│   ├── DockerCliService      # Docker CLI integration
-│   └── DataPathResolver      # Data directory resolution and migration
-├── Converters/               # UI value converters
-├── Controls/                 # Custom UI controls
-│   └── HistoryTextBox        # TextBox with history navigation
-├── Resources/                # Localization, themes, and assets
-│   ├── Strings.resx          # English localization
-│   ├── Strings.ru.resx       # Russian localization
-│   ├── LocalizedStrings.cs   # Strongly-typed localization accessor
+│   └── RelayCommand / AsyncRelayCommand
+├── Services/                          # Business logic services
+│   ├── LlamaServerService             # Process management, HTTP slots/model queries
+│   ├── ILlamaServerService            # Service interface
+│   ├── ConfigurationService           # Profile and settings persistence (JSON)
+│   ├── LlamaCppDownloadService        # Downloads llama.cpp releases from GitHub
+│   ├── LlamaHelpParserService         # Parses --help output for feature detection
+│   ├── LogService                     # Application and server log management
+│   ├── LogStreamService               # WebSocket log streaming server with HTTP API
+│   ├── ToastService                   # In-app toast notification system
+│   ├── AutoStartService               # System auto-start (Windows/Linux/macOS)
+│   ├── SingleInstanceService          # Enforces single instance with IPC activation
+│   ├── DockerCliService               # Docker CLI integration
+│   ├── AppUpdateService               # Application auto-update via GitHub releases
+│   ├── WindowsFileDialogs             # File/folder picker abstractions
+│   ├── DialogPositionHelper           # Dialog window position/size persistence
+│   └── DataPathResolver               # Data directory resolution and migration
+├── Converters/                        # UI value converters
+├── Controls/                          # Custom UI controls
+│   └── HistoryTextBox                 # TextBox with history navigation
+├── Resources/                         # Localization, themes, and assets
+│   ├── Strings.resx                   # English localization
+│   ├── Strings.ru.resx                # Russian localization
+│   ├── LocalizedStrings.cs            # Strongly-typed localization accessor
 │   ├── Themes/
-│   │   ├── Dark.xaml         # Dark theme
-│   │   ├── Light.xaml        # Light theme
-│   │   └── Schemes/          # Color accent schemes
+│   │   ├── Dark.xaml                  # Dark theme
+│   │   ├── Light.xaml                 # Light theme
+│   │   └── Schemes/                   # Color accent schemes
 │   │       ├── Default.xaml
 │   │       ├── Ocean.xaml
 │   │       ├── Forest.xaml
 │   │       ├── Sunset.xaml
 │   │       └── Ubuntu.xaml
-│   └── *.svg                 # Icon assets
-├── MainWindow.axaml          # Main window with drag-and-drop support
+│   └── *.svg                          # Icon assets
+├── MainWindow.axaml                   # Main window with drag-and-drop support
+├── ScenarioDialogWindow.axaml         # Scenario creation and editing dialog
 ├── DownloadDialogWindow.axaml
 ├── ArgumentPickerWindow.axaml
 ├── AboutDialogWindow.axaml
-└── App.axaml                 # App entry point, tray icon, culture handling
+└── App.axaml                          # App entry point, tray icon, culture handling, single-instance
 ```
 
 ## Acknowledgments
